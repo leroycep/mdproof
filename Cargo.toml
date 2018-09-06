@@ -1,0 +1,8 @@
+[package]
+name = "rust-mdpdf"
+version = "0.1.0"
+authors = ["LeRoyce Pearson <leroycepearson@geemili.xyz>"]
+
+[dependencies]
+pulldown-cmark = "0"
+printpdf = "*"
