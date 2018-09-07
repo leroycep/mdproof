@@ -4,7 +4,7 @@ extern crate printpdf;
 use printpdf::*;
 use cmark::*;
 use std::fs::File;
-use std::io::BufWriter;
+use std::io::{BufWriter, Read};
 
 const A4_DIMENSIONS: (Mm, Mm) = (Mm(210.0), Mm(297.0));
 const DEFAULT_FONT: BuiltinFont = BuiltinFont::TimesRoman;
@@ -17,9 +17,11 @@ fn main() {
     let (mut doc, page1, layer1) = PdfDocument::new("Rust MD PDF", A4_DIMENSIONS.0, A4_DIMENSIONS.1, "Layer 1");
     let current_layer = doc.get_page(page1).get_layer(layer1);
 
-    let markdown = "Lorem **ipsum**";
+    let mut markdown_file = File::open("test.md").unwrap();
+    let mut markdown = String::new();
+    markdown_file.read_to_string(&mut markdown).unwrap();
 
-    let parser = Parser::new(markdown);
+    let parser = Parser::new(&markdown);
 
     let normal_font = doc.add_builtin_font(DEFAULT_FONT).unwrap();
     let bold_font = doc.add_builtin_font(BOLD_FONT).unwrap();
