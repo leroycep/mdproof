@@ -12,12 +12,18 @@ use std::borrow::Cow;
 const PAGE_SIZE: (f32, f32) = (595.0, 842.0);
 const MARGIN: (f32, f32) = (20.0, 20.0);
 const DEFAULT_FONT: BuiltinFont = BuiltinFont::Times_Roman;
-const DEFAULT_FONT_SIZE: f32 = 12.0;
 const BOLD_FONT: BuiltinFont = BuiltinFont::Times_Bold;
 const ITALIC_FONT: BuiltinFont = BuiltinFont::Times_Italic;
 
+const DEFAULT_FONT_SIZE: f32 = 12.0;
+const H1_FONT_SIZE: f32 = 28.0;
+const H2_FONT_SIZE: f32 = 24.0;
+const H3_FONT_SIZE: f32 = 20.0;
+const H4_FONT_SIZE: f32 = 16.0;
+
 const DEFAULT_OUTPUT_FILENAME: &str = "test.pdf";
 
+#[derive(Clone, Debug)]
 struct Span<'txt> {
     text: Cow<'txt, str>,
     font_type: BuiltinFont,
@@ -32,6 +38,37 @@ impl<'txt> Span<'txt> {
     }
 }
 
+struct Lines<'txt> {
+    pub x: f32,
+    lines: VecDeque<Vec<Span<'txt>>>,
+    current_line: Vec<Span<'txt>>,
+}
+
+impl<'txt> Lines<'txt> {
+    pub fn new() -> Self {
+        Self {
+            x: 0.0,
+            lines: VecDeque::new(),
+            current_line: Vec::new(),
+        }
+    }
+
+    pub fn push_span(&mut self, span: Span<'txt>, width: f32) {
+        self.x += width;
+        self.current_line.push(span);
+    }
+
+    pub fn new_line(&mut self) {
+        self.lines.push_back(self.current_line.clone());
+        self.current_line.clear();
+        self.x = 0.0;
+    }
+
+    pub fn get_vecdeque(self) -> VecDeque<Vec<Span<'txt>>> {
+        self.lines
+    }
+}
+
 fn main() {
     let mut doc = Pdf::create(DEFAULT_OUTPUT_FILENAME).unwrap();
 
@@ -41,11 +78,10 @@ fn main() {
 
     let parser = Parser::new(&markdown);
 
-    let mut lines = VecDeque::new();
-    let mut x = 0.0;
-    let mut current_line = vec![];
+    let mut lines = Lines::new();
     let max_width = PAGE_SIZE.0 - MARGIN.0 - MARGIN.0;
     let mut current_font = DEFAULT_FONT;
+    let mut current_size = DEFAULT_FONT_SIZE;
 
     for event in parser {
         match event {
@@ -54,33 +90,37 @@ fn main() {
             Event::Start(Tag::Emphasis) => current_font = ITALIC_FONT,
             Event::End(Tag::Emphasis) => current_font = DEFAULT_FONT,
 
-            Event::Start(Tag::Item) => current_line.push(Span::new(" - ".into(), current_font, DEFAULT_FONT_SIZE)),
-            Event::End(Tag::Item) => {
-                lines.push_back(current_line);
-                current_line = vec![];
-            }
-
-            Event::Text(text) => {
-                let width = current_font.get_width(DEFAULT_FONT_SIZE, &text);
-                if x + width > max_width {
-                    lines.push_back(current_line);
-                    x = 0.0;
-                    current_line = vec![];
-                }
-                x += width;
-                current_line.push(Span::new(text, current_font, DEFAULT_FONT_SIZE));
+            Event::Start(Tag::Header(size)) => current_size = match size {
+                1 => H1_FONT_SIZE,
+                2 => H2_FONT_SIZE,
+                3 => H3_FONT_SIZE,
+                _ => H4_FONT_SIZE,
+            },
+            Event::End(Tag::Header(_)) => {
+                current_size = DEFAULT_FONT_SIZE;
+                lines.new_line();
             },
 
-            Event::End(Tag::Paragraph) => {
-                lines.push_back(current_line);
-                current_line = vec![];
-            }
+            Event::Start(Tag::Item) => lines.push_span(Span::new(" - ".into(), current_font, current_size), current_font.get_width(current_size, " - ")),
+            Event::End(Tag::Item) => lines.new_line(),
 
-            Event::SoftBreak => current_line.push(Span::new(" ".into(), current_font, DEFAULT_FONT_SIZE)),
+            Event::Text(text) => {
+                let width = current_font.get_width(current_size, &text);
+                if lines.x + width > max_width {
+                    lines.new_line();
+                }
+                lines.push_span(Span::new(text, current_font, current_size), width);
+            },
+
+            Event::End(Tag::Paragraph) => lines.new_line(),
+
+            Event::HardBreak => lines.push_span(Span::new(" ".into(), current_font, current_size), current_font.get_width(current_size, " ")),
 
             _ => {}
         }
     }
+
+    let lines = lines.get_vecdeque();
 
     doc.render_page(PAGE_SIZE.0, PAGE_SIZE.1, |canvas| {
         let regular = canvas.get_font(DEFAULT_FONT);

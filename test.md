@@ -38,9 +38,9 @@ can [see the source for it by adding '.text' to the URL][src].
 
 * * *
 
-<h2 id="overview">Overview</h2>
+## Overview
 
-<h3 id="philosophy">Philosophy</h3>
+### Philosophy
 
 Markdown is intended to be as easy-to-read and easy-to-write as is feasible.
 
