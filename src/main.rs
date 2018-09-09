@@ -6,7 +6,6 @@ use cmark::*;
 use std::fs::File;
 use std::io::Read;
 use std::collections::VecDeque;
-use std::borrow::Cow;
 
 /// PAGE_SIZE is the size of a sheet of A4 paper in pt
 const PAGE_SIZE: (f32, f32) = (595.0, 842.0);
@@ -24,49 +23,73 @@ const H4_FONT_SIZE: f32 = 16.0;
 const DEFAULT_OUTPUT_FILENAME: &str = "test.pdf";
 
 #[derive(Clone, Debug)]
-enum Span<'txt> {
+enum Span {
     Text {
-        text: Cow<'txt, str>,
+        text: String,
         font_type: BuiltinFont,
         font_size: f32,
     },
 }
 
-impl<'txt> Span<'txt> {
-    pub fn text(text: Cow<'txt, str>, font_type: BuiltinFont, font_size: f32) -> Self {
+impl Span {
+    pub fn text(text: String, font_type: BuiltinFont, font_size: f32) -> Self {
         Span::Text {
             text, font_type, font_size
         }
     }
+
+    pub fn height(&self) -> f32 {
+        match self {
+            Span::Text { font_size, .. } => *font_size,
+        }
+    }
 }
 
-struct Lines<'txt> {
+enum Section {
+    Plain(Vec<Span>),
+}
+
+impl Section {
+    pub fn plain(spans: Vec<Span>) -> Self {
+        Section::Plain(spans)
+    }
+
+    pub fn height(&self) -> f32 {
+        match self {
+            Section::Plain(spans) => spans.iter().map(|x| x.height()).fold(0.0, |x, acc| acc.max(x)),
+        }
+    }
+}
+
+struct Lines {
     pub x: f32,
-    lines: VecDeque<Vec<Span<'txt>>>,
-    current_line: Vec<Span<'txt>>,
+    lines: VecDeque<Section>,
+    current_line: Vec<Span>,
+    pub is_code: bool,
 }
 
-impl<'txt> Lines<'txt> {
+impl Lines {
     pub fn new() -> Self {
         Self {
             x: 0.0,
             lines: VecDeque::new(),
             current_line: Vec::new(),
+            is_code: false,
         }
     }
 
-    pub fn push_span(&mut self, span: Span<'txt>, width: f32) {
+    pub fn push_span(&mut self, span: Span, width: f32) {
         self.x += width;
         self.current_line.push(span);
     }
 
     pub fn new_line(&mut self) {
-        self.lines.push_back(self.current_line.clone());
+        self.lines.push_back(Section::plain(self.current_line.clone()));
         self.current_line.clear();
         self.x = 0.0;
     }
 
-    pub fn get_vecdeque(self) -> VecDeque<Vec<Span<'txt>>> {
+    pub fn get_vecdeque(self) -> VecDeque<Section> {
         self.lines
     }
 }
@@ -106,12 +129,36 @@ fn main() {
             Event::Start(Tag::Item) => lines.push_span(Span::text(" - ".into(), current_font, current_size), current_font.get_width(current_size, " - ")),
             Event::End(Tag::Item) => lines.new_line(),
 
+            Event::Text(ref text) if lines.is_code => {
+                let mut start = 0;
+                for (pos, c) in text.chars().enumerate() {
+                    if c == '\n' {
+                        // We can put 0.0 for the width because we the call to new_line will make it irrelevant
+                        lines.push_span(Span::text(text[start..pos].into(), current_font, current_size), 0.0);
+                        lines.new_line();
+                        start = pos + 1;
+                    }
+                }
+                if start < text.len() {
+                        lines.push_span(Span::text(text[start..].into(), current_font, current_size), 0.0);
+                }
+            },
             Event::Text(text) => {
                 let width = current_font.get_width(current_size, &text);
                 if lines.x + width > max_width {
                     lines.new_line();
                 }
-                lines.push_span(Span::text(text, current_font, current_size), width);
+                lines.push_span(Span::text(text.to_string(), current_font, current_size), width);
+            },
+
+            Event::Start(Tag::CodeBlock(_src_type)) => {
+                lines.is_code = true;
+                current_font = BuiltinFont::Courier;
+                current_size = DEFAULT_FONT_SIZE;
+            },
+            Event::End(Tag::CodeBlock(_)) => {
+                lines.is_code = false;
+                current_font = DEFAULT_FONT;
             },
 
             Event::Start(Tag::Paragraph) => lines.new_line(),
@@ -131,34 +178,43 @@ fn main() {
             let regular = canvas.get_font(DEFAULT_FONT);
             let bold = canvas.get_font(BOLD_FONT);
             let italic = canvas.get_font(ITALIC_FONT);
+            let mono = canvas.get_font(BuiltinFont::Courier);
             canvas.text(|t| {
                 t.set_font(&regular, DEFAULT_FONT_SIZE)?;
                 t.set_leading(18.0)?;
                 t.pos(MARGIN.0, PAGE_SIZE.1-MARGIN.1)?;
                 let mut y = PAGE_SIZE.1-MARGIN.1;
                 let min_y = MARGIN.1;
+                let spacing = 1.75;
 
                 while y > min_y {
                     let line = match lines.pop_front() {
                         Some(l) => l,
                         None => break,
                     };
-                    for span in line {
-                        match span {
-                            Span::Text { text, font_type, font_size } => {
-                                let font = match font_type {
-                                    BuiltinFont::Times_Roman => &regular,
-                                    BuiltinFont::Times_Bold => &bold,
-                                    BuiltinFont::Times_Italic => &italic,
-                                    _ => &regular,
-                                };
-                                t.set_font(font, font_size)?;
-                                t.show(&text)?;
+                    let height = line.height();
+                    let delta_y = -height * spacing;
+                    y += delta_y;
+                    t.pos(0.0, delta_y)?;
+                    match line {
+                        Section::Plain(spans) => {
+                            for span in spans {
+                                match span {
+                                    Span::Text { text, font_type, font_size } => {
+                                        let font = match font_type {
+                                            BuiltinFont::Times_Roman => &regular,
+                                            BuiltinFont::Times_Bold => &bold,
+                                            BuiltinFont::Times_Italic => &italic,
+                                            BuiltinFont::Courier => &mono,
+                                            _ => &regular,
+                                        };
+                                        t.set_font(font, font_size)?;
+                                        t.show(&text)?;
+                                    }
+                                }
                             }
                         }
                     }
-                    t.show_line("")?;
-                    y -= 18.0;
                 }
                 Ok(())
             })
