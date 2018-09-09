@@ -47,6 +47,7 @@ impl Span {
 
 enum Section {
     Plain(Vec<Span>),
+    VerticalSpace(f32),
 }
 
 impl Section {
@@ -54,9 +55,14 @@ impl Section {
         Section::Plain(spans)
     }
 
+    pub fn space(space_pt: f32) -> Self {
+        Section::VerticalSpace(space_pt)
+    }
+
     pub fn height(&self) -> f32 {
         match self {
             Section::Plain(spans) => spans.iter().map(|x| x.height()).fold(0.0, |x, acc| acc.max(x)),
+            Section::VerticalSpace(space_pt) => *space_pt,
         }
     }
 }
@@ -76,6 +82,10 @@ impl Lines {
             current_line: Vec::new(),
             is_code: false,
         }
+    }
+
+    pub fn push_section(&mut self, section: Section) {
+        self.lines.push_back(section);
     }
 
     pub fn push_span(&mut self, span: Span, width: f32) {
@@ -177,7 +187,10 @@ fn main() {
             },
 
             Event::Start(Tag::Paragraph) => lines.new_line(),
-            Event::End(Tag::Paragraph) => lines.new_line(),
+            Event::End(Tag::Paragraph) => {
+                lines.new_line();
+                lines.push_section(Section::space(DEFAULT_FONT_SIZE));
+            },
 
             Event::SoftBreak => lines.push_span(Span::text(" ".into(), current_font, current_size), current_font.get_width(current_size, " ")),
             Event::HardBreak => lines.new_line(),
@@ -233,6 +246,7 @@ fn main() {
                                 }
                             }
                         }
+                        Section::VerticalSpace(_) => {}
                     }
                 }
                 Ok(())
