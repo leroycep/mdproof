@@ -182,6 +182,8 @@ fn main() {
                 current_size = DEFAULT_FONT_SIZE;
             },
             Event::End(Tag::CodeBlock(_)) => {
+                lines.new_line();
+                lines.push_section(Section::space(DEFAULT_FONT_SIZE));
                 lines.is_code = false;
                 current_font = DEFAULT_FONT;
             },
