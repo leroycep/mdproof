@@ -20,6 +20,8 @@ const H2_FONT_SIZE: f32 = 28.0;
 const H3_FONT_SIZE: f32 = 20.0;
 const H4_FONT_SIZE: f32 = 16.0;
 
+const LINE_SPACING: f32 = 1.75; // Text height * LINE_SPACING
+
 const DEFAULT_OUTPUT_FILENAME: &str = "test.pdf";
 
 #[derive(Clone, Debug)]
@@ -35,6 +37,12 @@ impl Span {
     pub fn text(text: String, font_type: BuiltinFont, font_size: f32) -> Self {
         Span::Text {
             text, font_type, font_size
+        }
+    }
+
+    pub fn width(&self) -> f32 {
+        match self {
+            Span::Text { text, font_type, font_size } => font_type.get_width(*font_size, text),
         }
     }
 
@@ -205,54 +213,74 @@ fn main() {
         }
     }
 
-    let mut lines = lines.get_vecdeque();
+    let mut sections = lines.get_vecdeque();
 
-    while lines.len() > 0 {
+    let mut pages: Vec<Vec<PositionedSpan>> = vec![];
+    while sections.len() > 0 {
+        let mut y = PAGE_SIZE.1-MARGIN.1;
+        let min_y = MARGIN.1;
+
+        let mut positioned_spans = vec![];
+
+        while y > min_y {
+            let section = match sections.pop_front() {
+                Some(l) => l,
+                None => break,
+            };
+            let height = section.height();
+            let delta_y = -height * LINE_SPACING;
+            if y + delta_y < min_y {
+                sections.push_front(section);
+                break;
+            }
+            y += delta_y;
+            match section {
+                Section::Plain(spans) => {
+                    let mut x = MARGIN.0;
+                    for span in spans {
+                        positioned_spans.push(PositionedSpan::new(span.clone(), x, y));
+                        x += span.width();
+                    }
+                }
+                Section::VerticalSpace(_) => {}
+            }
+        }
+
+        pages.push(positioned_spans);
+    }
+
+    for page in pages {
         doc.render_page(PAGE_SIZE.0, PAGE_SIZE.1, |canvas| {
             let regular = canvas.get_font(DEFAULT_FONT);
             let bold = canvas.get_font(BOLD_FONT);
             let italic = canvas.get_font(ITALIC_FONT);
             let mono = canvas.get_font(BuiltinFont::Courier);
             canvas.text(|t| {
+                let mut page = page.into_iter().peekable();
+                let mut pos = match page.peek() {
+                    Some(x) => x.pos.clone(),
+                    None => return Ok(()),
+                };
                 t.set_font(&regular, DEFAULT_FONT_SIZE)?;
                 t.set_leading(18.0)?;
-                t.pos(MARGIN.0, PAGE_SIZE.1-MARGIN.1)?;
-                let mut y = PAGE_SIZE.1-MARGIN.1;
-                let min_y = MARGIN.1;
-                let spacing = 1.75;
+                t.pos(pos.0, pos.1)?;
+                for span in page {
+                    let delta = (span.pos.0-pos.0, span.pos.1-pos.1);
+                    t.pos(delta.0, delta.1)?;
+                    pos = span.pos;
 
-                while y > min_y {
-                    let line = match lines.pop_front() {
-                        Some(l) => l,
-                        None => break,
-                    };
-                    let height = line.height();
-                    let delta_y = -height * spacing;
-                    if y + delta_y < min_y {
-                        lines.push_front(line);
-                        break;
-                    }
-                    y += delta_y;
-                    t.pos(0.0, delta_y)?;
-                    match line {
-                        Section::Plain(spans) => {
-                            for span in spans {
-                                match span {
-                                    Span::Text { text, font_type, font_size } => {
-                                        let font = match font_type {
-                                            BuiltinFont::Times_Roman => &regular,
-                                            BuiltinFont::Times_Bold => &bold,
-                                            BuiltinFont::Times_Italic => &italic,
-                                            BuiltinFont::Courier => &mono,
-                                            _ => &regular,
-                                        };
-                                        t.set_font(font, font_size)?;
-                                        t.show(&text)?;
-                                    }
-                                }
-                            }
+                    match span.span {
+                        Span::Text { text, font_type, font_size } => {
+                            let font = match font_type {
+                                BuiltinFont::Times_Roman => &regular,
+                                BuiltinFont::Times_Bold => &bold,
+                                BuiltinFont::Times_Italic => &italic,
+                                BuiltinFont::Courier => &mono,
+                                _ => &regular,
+                            };
+                            t.set_font(font, font_size)?;
+                            t.show(&text)?;
                         }
-                        Section::VerticalSpace(_) => {}
                     }
                 }
                 Ok(())
@@ -261,4 +289,17 @@ fn main() {
     }
 
     doc.finish().unwrap();
+}
+
+#[derive(Clone)]
+struct PositionedSpan {
+    pub span: Span,
+    pub pos: (f32, f32),
+}
+
+impl PositionedSpan {
+    pub fn new(span: Span, x: f32, y: f32) -> Self {
+        let pos = (x, y);
+        Self { span, pos }
+    }
 }
