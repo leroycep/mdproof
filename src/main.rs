@@ -158,7 +158,11 @@ fn main() {
 
                 let mut buffer = String::new();
                 let mut buffer_width = 0.0;
-                for word in text.split_whitespace() {
+                let mut pos = 0;
+                while pos < text.len() {
+                    let idx = text[pos..].find(char::is_whitespace).unwrap_or(text.len()-pos-1)+pos+1;
+                    let word = &text[pos..idx];
+                    pos = idx;
                     let word_width = current_font.get_width(current_size, word);
                     if lines.x + buffer_width + word_width > max_width {
                         lines.push_span(Span::text(buffer.clone(), current_font, current_size), buffer_width);
