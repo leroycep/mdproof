@@ -194,6 +194,10 @@ fn main() {
                     };
                     let height = line.height();
                     let delta_y = -height * spacing;
+                    if y + delta_y < min_y {
+                        lines.push_front(line);
+                        break;
+                    }
                     y += delta_y;
                     t.pos(0.0, delta_y)?;
                     match line {
