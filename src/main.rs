@@ -144,11 +144,26 @@ fn main() {
                 }
             },
             Event::Text(text) => {
-                let width = current_font.get_width(current_size, &text);
-                if lines.x + width > max_width {
-                    lines.new_line();
+                let space_width = current_font.get_width(current_size, " ");
+
+                let mut buffer = String::new();
+                let mut buffer_width = 0.0;
+                for word in text.split_whitespace() {
+                    let word_width = current_font.get_width(current_size, word);
+                    if lines.x + buffer_width + word_width > max_width {
+                        lines.push_span(Span::text(buffer.clone(), current_font, current_size), buffer_width);
+                        lines.new_line();
+                        buffer.clear();
+                        buffer_width = 0.0;
+                    }
+                    if buffer.len() > 0 {
+                        buffer.push(' ');
+                        buffer_width += space_width;
+                    }
+                    buffer.push_str(word);
+                    buffer_width += word_width;
                 }
-                lines.push_span(Span::text(text.to_string(), current_font, current_size), width);
+                lines.push_span(Span::text(buffer, current_font, current_size), buffer_width);
             },
 
             Event::Start(Tag::CodeBlock(_src_type)) => {
