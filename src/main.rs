@@ -112,41 +112,52 @@ fn main() {
                 lines.push_span(Span::new(text, current_font, current_size), width);
             },
 
+            Event::Start(Tag::Paragraph) => lines.new_line(),
             Event::End(Tag::Paragraph) => lines.new_line(),
 
-            Event::HardBreak => lines.push_span(Span::new(" ".into(), current_font, current_size), current_font.get_width(current_size, " ")),
+            Event::SoftBreak => lines.push_span(Span::new(" ".into(), current_font, current_size), current_font.get_width(current_size, " ")),
+            Event::HardBreak => lines.new_line(),
 
             _ => {}
         }
     }
 
-    let lines = lines.get_vecdeque();
+    let mut lines = lines.get_vecdeque();
 
-    doc.render_page(PAGE_SIZE.0, PAGE_SIZE.1, |canvas| {
-        let regular = canvas.get_font(DEFAULT_FONT);
-        let bold = canvas.get_font(BOLD_FONT);
-        let italic = canvas.get_font(ITALIC_FONT);
-        canvas.text(|t| {
-            t.set_font(&regular, DEFAULT_FONT_SIZE)?;
-            t.set_leading(18.0)?;
-            t.pos(MARGIN.0, PAGE_SIZE.1-MARGIN.1)?;
+    while lines.len() > 0 {
+        doc.render_page(PAGE_SIZE.0, PAGE_SIZE.1, |canvas| {
+            let regular = canvas.get_font(DEFAULT_FONT);
+            let bold = canvas.get_font(BOLD_FONT);
+            let italic = canvas.get_font(ITALIC_FONT);
+            canvas.text(|t| {
+                t.set_font(&regular, DEFAULT_FONT_SIZE)?;
+                t.set_leading(18.0)?;
+                t.pos(MARGIN.0, PAGE_SIZE.1-MARGIN.1)?;
+                let mut y = PAGE_SIZE.1-MARGIN.1;
+                let min_y = MARGIN.1;
 
-            for line in lines {
-                for span in line {
-                    let font = match span.font_type {
-                        BuiltinFont::Times_Roman => &regular,
-                        BuiltinFont::Times_Bold => &bold,
-                        BuiltinFont::Times_Italic => &italic,
-                        _ => &regular,
+                while y > min_y {
+                    let line = match lines.pop_front() {
+                        Some(l) => l,
+                        None => break,
                     };
-                    t.set_font(font, span.font_size)?;
-                    t.show(&span.text)?;
+                    for span in line {
+                        let font = match span.font_type {
+                            BuiltinFont::Times_Roman => &regular,
+                            BuiltinFont::Times_Bold => &bold,
+                            BuiltinFont::Times_Italic => &italic,
+                            _ => &regular,
+                        };
+                        t.set_font(font, span.font_size)?;
+                        t.show(&span.text)?;
+                    }
+                    t.show_line("")?;
+                    y -= 18.0;
                 }
-                t.show_line("")?;
-            }
-            Ok(())
-        })
-    }).unwrap();
+                Ok(())
+            })
+        }).unwrap();
+    }
 
     doc.finish().unwrap();
 }
