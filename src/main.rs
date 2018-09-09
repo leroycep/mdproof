@@ -9,14 +9,14 @@ use std::collections::VecDeque;
 
 /// PAGE_SIZE is the size of a sheet of A4 paper in pt
 const PAGE_SIZE: (f32, f32) = (595.0, 842.0);
-const MARGIN: (f32, f32) = (20.0, 20.0);
+const MARGIN: (f32, f32) = (50.0, 50.0);
 const DEFAULT_FONT: BuiltinFont = BuiltinFont::Times_Roman;
 const BOLD_FONT: BuiltinFont = BuiltinFont::Times_Bold;
 const ITALIC_FONT: BuiltinFont = BuiltinFont::Times_Italic;
 
 const DEFAULT_FONT_SIZE: f32 = 12.0;
-const H1_FONT_SIZE: f32 = 28.0;
-const H2_FONT_SIZE: f32 = 24.0;
+const H1_FONT_SIZE: f32 = 32.0;
+const H2_FONT_SIZE: f32 = 28.0;
 const H3_FONT_SIZE: f32 = 20.0;
 const H4_FONT_SIZE: f32 = 16.0;
 
