@@ -24,15 +24,17 @@ const H4_FONT_SIZE: f32 = 16.0;
 const DEFAULT_OUTPUT_FILENAME: &str = "test.pdf";
 
 #[derive(Clone, Debug)]
-struct Span<'txt> {
-    text: Cow<'txt, str>,
-    font_type: BuiltinFont,
-    font_size: f32,
+enum Span<'txt> {
+    Text {
+        text: Cow<'txt, str>,
+        font_type: BuiltinFont,
+        font_size: f32,
+    },
 }
 
 impl<'txt> Span<'txt> {
-    pub fn new(text: Cow<'txt, str>, font_type: BuiltinFont, font_size: f32) -> Self {
-        Self {
+    pub fn text(text: Cow<'txt, str>, font_type: BuiltinFont, font_size: f32) -> Self {
+        Span::Text {
             text, font_type, font_size
         }
     }
@@ -101,7 +103,7 @@ fn main() {
                 lines.new_line();
             },
 
-            Event::Start(Tag::Item) => lines.push_span(Span::new(" - ".into(), current_font, current_size), current_font.get_width(current_size, " - ")),
+            Event::Start(Tag::Item) => lines.push_span(Span::text(" - ".into(), current_font, current_size), current_font.get_width(current_size, " - ")),
             Event::End(Tag::Item) => lines.new_line(),
 
             Event::Text(text) => {
@@ -109,13 +111,13 @@ fn main() {
                 if lines.x + width > max_width {
                     lines.new_line();
                 }
-                lines.push_span(Span::new(text, current_font, current_size), width);
+                lines.push_span(Span::text(text, current_font, current_size), width);
             },
 
             Event::Start(Tag::Paragraph) => lines.new_line(),
             Event::End(Tag::Paragraph) => lines.new_line(),
 
-            Event::SoftBreak => lines.push_span(Span::new(" ".into(), current_font, current_size), current_font.get_width(current_size, " ")),
+            Event::SoftBreak => lines.push_span(Span::text(" ".into(), current_font, current_size), current_font.get_width(current_size, " ")),
             Event::HardBreak => lines.new_line(),
 
             _ => {}
@@ -142,14 +144,18 @@ fn main() {
                         None => break,
                     };
                     for span in line {
-                        let font = match span.font_type {
-                            BuiltinFont::Times_Roman => &regular,
-                            BuiltinFont::Times_Bold => &bold,
-                            BuiltinFont::Times_Italic => &italic,
-                            _ => &regular,
-                        };
-                        t.set_font(font, span.font_size)?;
-                        t.show(&span.text)?;
+                        match span {
+                            Span::Text { text, font_type, font_size } => {
+                                let font = match font_type {
+                                    BuiltinFont::Times_Roman => &regular,
+                                    BuiltinFont::Times_Bold => &bold,
+                                    BuiltinFont::Times_Italic => &italic,
+                                    _ => &regular,
+                                };
+                                t.set_font(font, font_size)?;
+                                t.show(&text)?;
+                            }
+                        }
                     }
                     t.show_line("")?;
                     y -= 18.0;
