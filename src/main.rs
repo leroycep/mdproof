@@ -1,3 +1,4 @@
+#[macro_use] extern crate quicli;
 extern crate pulldown_cmark as cmark;
 extern crate pdf_canvas;
 
@@ -5,6 +6,7 @@ use pdf_canvas::{Pdf, BuiltinFont};
 use cmark::*;
 use std::fs::File;
 use std::io::Read;
+use quicli::prelude::*;
 
 /// PAGE_SIZE is the size of a sheet of A4 paper in pt
 const PAGE_SIZE: (f32, f32) = (595.0, 842.0);
@@ -23,8 +25,6 @@ const LINE_SPACING: f32 = 1.75; // Text height * LINE_SPACING
 const LIST_INDENTATION: f32 = 20.0;
 const QUOTE_INDENTATION: f32 = 20.0;
 
-const DEFAULT_OUTPUT_FILENAME: &str = "test.pdf";
-
 mod span;
 mod section;
 mod sectioner;
@@ -35,12 +35,24 @@ use span::Span;
 use sectioner::Sectioner;
 use pages::Pages;
 
-fn main() {
-    let mut doc = Pdf::create(DEFAULT_OUTPUT_FILENAME).unwrap();
+#[derive(Debug, StructOpt)]
+struct Cli {
+    /// The markdown file to read and render
+    markdown_file: String,
+    /// Where to save the generated `.pdf` to
+    #[structopt(long="out", short="o")]
+    output_file: String,
 
-    let mut markdown_file = File::open("test.md").unwrap();
+    #[structopt(flatten)]
+    verbosity: Verbosity,
+}
+
+main!(|args: Cli, log_level: verbosity| {
+    let mut doc = Pdf::create(&args.output_file)?;
+
+    let mut markdown_file = File::open(args.markdown_file)?;
     let mut markdown = String::new();
-    markdown_file.read_to_string(&mut markdown).unwrap();
+    markdown_file.read_to_string(&mut markdown)?;
 
     let parser = Parser::new(&markdown);
 
@@ -94,9 +106,9 @@ fn main() {
                 }
                 Ok(())
             })
-        }).unwrap();
+        })?;
     }
 
-    doc.finish().unwrap();
-}
+    doc.finish()?;
+});
 

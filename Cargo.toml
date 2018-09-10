@@ -4,5 +4,6 @@ version = "0.1.0"
 authors = ["LeRoyce Pearson <leroycepearson@geemili.xyz>"]
 
 [dependencies]
+quicli = "0.3"
 pulldown-cmark = "0"
 pdf-canvas = "*"
