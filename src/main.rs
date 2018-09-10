@@ -56,6 +56,7 @@ impl Span {
 enum Section {
     Plain(Vec<Span>),
     VerticalSpace(f32),
+//    ListItem(Vec<Section>),
 }
 
 impl Section {
@@ -79,16 +80,112 @@ struct Lines {
     pub x: f32,
     lines: VecDeque<Section>,
     current_line: Vec<Span>,
+    current_font: BuiltinFont,
+    current_size: f32,
+    max_width: f32,
     pub is_code: bool,
 }
 
 impl Lines {
-    pub fn new() -> Self {
+    pub fn new(max_width: f32) -> Self {
         Self {
             x: 0.0,
             lines: VecDeque::new(),
             current_line: Vec::new(),
+            current_font: DEFAULT_FONT,
+            current_size: DEFAULT_FONT_SIZE,
+            max_width: max_width,
             is_code: false,
+        }
+    }
+
+    pub fn parse_event(&mut self, event: Event) {
+        match event {
+            Event::Start(Tag::Strong) => self.current_font = BOLD_FONT,
+            Event::End(Tag::Strong) => self.current_font = DEFAULT_FONT,
+            Event::Start(Tag::Emphasis) => self.current_font = ITALIC_FONT,
+            Event::End(Tag::Emphasis) => self.current_font = DEFAULT_FONT,
+
+            Event::Start(Tag::Header(size)) => self.current_size = match size {
+                1 => H1_FONT_SIZE,
+                2 => H2_FONT_SIZE,
+                3 => H3_FONT_SIZE,
+                _ => H4_FONT_SIZE,
+            },
+            Event::End(Tag::Header(_)) => {
+                self.current_size = DEFAULT_FONT_SIZE;
+                self.new_line();
+            },
+
+            Event::Start(Tag::Item) => self.write(" - "),
+            Event::End(Tag::Item) => self.new_line(),
+
+            Event::Text(ref text) if self.is_code => {
+                let mut start = 0;
+                for (pos, c) in text.chars().enumerate() {
+                    if c == '\n' {
+                        self.write(&text[start..pos]);
+                        self.new_line();
+                        start = pos + 1;
+                    }
+                }
+                if start < text.len() {
+                        self.write(&text[start..]);
+                }
+            },
+            Event::Text(text) => {
+                let space_width = self.current_font.get_width(self.current_size, " ");
+
+                let mut buffer = String::new();
+                let mut buffer_width = 0.0;
+                let mut pos = 0;
+                while pos < text.len() {
+                    let idx = text[pos..].find(char::is_whitespace).unwrap_or(text.len()-pos-1)+pos+1;
+                    let word = &text[pos..idx];
+                    pos = idx;
+                    let word_width = self.current_font.get_width(self.current_size, word);
+                    if self.x + buffer_width + word_width > self.max_width {
+                        self.write(&buffer);
+                        self.new_line();
+                        buffer.clear();
+                        buffer_width = 0.0;
+                    }
+                    if buffer.len() > 0 {
+                        buffer.push(' ');
+                        buffer_width += space_width;
+                    }
+                    buffer.push_str(word);
+                    buffer_width += word_width;
+                }
+                let span = Span::text(buffer, self.current_font, self.current_size);
+                self.push_span(span);
+            },
+
+            Event::Start(Tag::Code) => self.current_font = BuiltinFont::Courier,
+            Event::End(Tag::Code) => self.current_font = DEFAULT_FONT,
+
+            Event::Start(Tag::CodeBlock(_src_type)) => {
+                self.is_code = true;
+                self.current_font = BuiltinFont::Courier;
+                self.current_size = DEFAULT_FONT_SIZE;
+            },
+            Event::End(Tag::CodeBlock(_)) => {
+                self.new_line();
+                self.push_section(Section::space(DEFAULT_FONT_SIZE));
+                self.is_code = false;
+                self.current_font = DEFAULT_FONT;
+            },
+
+            Event::Start(Tag::Paragraph) => self.new_line(),
+            Event::End(Tag::Paragraph) => {
+                self.new_line();
+                self.push_section(Section::space(DEFAULT_FONT_SIZE));
+            },
+
+            Event::SoftBreak => self.write(" "),
+            Event::HardBreak => self.new_line(),
+
+            _ => {}
         }
     }
 
@@ -96,8 +193,13 @@ impl Lines {
         self.lines.push_back(section);
     }
 
-    pub fn push_span(&mut self, span: Span, width: f32) {
-        self.x += width;
+    pub fn write(&mut self, text: &str) {
+        let span = Span::text(text.into(), self.current_font, self.current_size);
+        self.push_span(span);
+    }
+
+    pub fn push_span(&mut self, span: Span) {
+        self.x += span.width();
         self.current_line.push(span);
     }
 
@@ -121,99 +223,11 @@ fn main() {
 
     let parser = Parser::new(&markdown);
 
-    let mut lines = Lines::new();
     let max_width = PAGE_SIZE.0 - MARGIN.0 - MARGIN.0;
-    let mut current_font = DEFAULT_FONT;
-    let mut current_size = DEFAULT_FONT_SIZE;
+    let mut lines = Lines::new(max_width);
 
     for event in parser {
-        match event {
-            Event::Start(Tag::Strong) => current_font = BOLD_FONT,
-            Event::End(Tag::Strong) => current_font = DEFAULT_FONT,
-            Event::Start(Tag::Emphasis) => current_font = ITALIC_FONT,
-            Event::End(Tag::Emphasis) => current_font = DEFAULT_FONT,
-
-            Event::Start(Tag::Header(size)) => current_size = match size {
-                1 => H1_FONT_SIZE,
-                2 => H2_FONT_SIZE,
-                3 => H3_FONT_SIZE,
-                _ => H4_FONT_SIZE,
-            },
-            Event::End(Tag::Header(_)) => {
-                current_size = DEFAULT_FONT_SIZE;
-                lines.new_line();
-            },
-
-            Event::Start(Tag::Item) => lines.push_span(Span::text(" - ".into(), current_font, current_size), current_font.get_width(current_size, " - ")),
-            Event::End(Tag::Item) => lines.new_line(),
-
-            Event::Text(ref text) if lines.is_code => {
-                let mut start = 0;
-                for (pos, c) in text.chars().enumerate() {
-                    if c == '\n' {
-                        // We can put 0.0 for the width because we the call to new_line will make it irrelevant
-                        lines.push_span(Span::text(text[start..pos].into(), current_font, current_size), 0.0);
-                        lines.new_line();
-                        start = pos + 1;
-                    }
-                }
-                if start < text.len() {
-                        lines.push_span(Span::text(text[start..].into(), current_font, current_size), 0.0);
-                }
-            },
-            Event::Text(text) => {
-                let space_width = current_font.get_width(current_size, " ");
-
-                let mut buffer = String::new();
-                let mut buffer_width = 0.0;
-                let mut pos = 0;
-                while pos < text.len() {
-                    let idx = text[pos..].find(char::is_whitespace).unwrap_or(text.len()-pos-1)+pos+1;
-                    let word = &text[pos..idx];
-                    pos = idx;
-                    let word_width = current_font.get_width(current_size, word);
-                    if lines.x + buffer_width + word_width > max_width {
-                        lines.push_span(Span::text(buffer.clone(), current_font, current_size), buffer_width);
-                        lines.new_line();
-                        buffer.clear();
-                        buffer_width = 0.0;
-                    }
-                    if buffer.len() > 0 {
-                        buffer.push(' ');
-                        buffer_width += space_width;
-                    }
-                    buffer.push_str(word);
-                    buffer_width += word_width;
-                }
-                lines.push_span(Span::text(buffer, current_font, current_size), buffer_width);
-            },
-
-            Event::Start(Tag::Code) => current_font = BuiltinFont::Courier,
-            Event::End(Tag::Code) => current_font = DEFAULT_FONT,
-
-            Event::Start(Tag::CodeBlock(_src_type)) => {
-                lines.is_code = true;
-                current_font = BuiltinFont::Courier;
-                current_size = DEFAULT_FONT_SIZE;
-            },
-            Event::End(Tag::CodeBlock(_)) => {
-                lines.new_line();
-                lines.push_section(Section::space(DEFAULT_FONT_SIZE));
-                lines.is_code = false;
-                current_font = DEFAULT_FONT;
-            },
-
-            Event::Start(Tag::Paragraph) => lines.new_line(),
-            Event::End(Tag::Paragraph) => {
-                lines.new_line();
-                lines.push_section(Section::space(DEFAULT_FONT_SIZE));
-            },
-
-            Event::SoftBreak => lines.push_span(Span::text(" ".into(), current_font, current_size), current_font.get_width(current_size, " ")),
-            Event::HardBreak => lines.new_line(),
-
-            _ => {}
-        }
+        lines.parse_event(event);
     }
 
     let mut sections = lines.get_vecdeque();
