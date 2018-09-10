@@ -21,6 +21,7 @@ const H4_FONT_SIZE: f32 = 16.0;
 
 const LINE_SPACING: f32 = 1.75; // Text height * LINE_SPACING
 const LIST_INDENTATION: f32 = 20.0;
+const QUOTE_INDENTATION: f32 = 20.0;
 
 const DEFAULT_OUTPUT_FILENAME: &str = "test.pdf";
 
@@ -58,6 +59,7 @@ enum Section {
     Plain(Vec<Span>),
     VerticalSpace(f32),
     ListItem(Vec<Section>),
+    BlockQuote(Vec<Section>),
 }
 
 impl Section {
@@ -73,11 +75,16 @@ impl Section {
         Section::ListItem(sections)
     }
 
+    pub fn block_quote(sections: Vec<Section>) -> Self {
+        Section::BlockQuote(sections)
+    }
+
     pub fn height(&self) -> f32 {
         match self {
             Section::Plain(spans) => spans.iter().map(|x| x.height()).fold(0.0, |x, acc| acc.max(x)),
             Section::VerticalSpace(space_pt) => *space_pt,
             Section::ListItem(sections) => sections.iter().map(|x| x.height()).sum(),
+            Section::BlockQuote(sections) => sections.iter().map(|x| x.height()).sum(),
         }
     }
 
@@ -86,8 +93,14 @@ impl Section {
             Section::Plain(_) => self.height(),
             Section::VerticalSpace(_) => self.height(),
             Section::ListItem(sections) => sections.iter().take(1).map(|x| x.height()).sum(),
+            Section::BlockQuote(sections) => sections.iter().take(1).map(|x| x.height()).sum(),
         }
     }
+}
+
+enum SubsectionType {
+    List,
+    Quote,
 }
 
 struct Lines {
@@ -115,16 +128,19 @@ impl Lines {
         }
     }
 
-    pub fn parse_event(&mut self, event: Event) -> bool {
+    pub fn parse_event(&mut self, event: Event) -> Option<SubsectionType> {
         if self.subsection.is_some() {
             let mut subsection = self.subsection.take().unwrap();
-            if subsection.parse_event(event) {
-                self.subsection = Some(subsection);
-            } else {
-                let section = Section::list_item(subsection.get_vec());
+            if let Some(sub_type) = subsection.parse_event(event) {
+                let section = match sub_type {
+                    SubsectionType::List => Section::list_item(subsection.get_vec()),
+                    SubsectionType::Quote => Section::block_quote(subsection.get_vec()),
+                };
                 self.push_section(section);
+            } else {
+                self.subsection = Some(subsection);
             };
-            return true;
+            return None;
         }
         match event {
             Event::Start(Tag::Strong) => self.current_font = BOLD_FONT,
@@ -145,9 +161,15 @@ impl Lines {
 
             Event::Start(Tag::Item) => {
                 self.new_line();
-                self.subsection = Some(Box::new(Lines::new(self.max_width - 20.0)))
+                self.subsection = Some(Box::new(Lines::new(self.max_width - LIST_INDENTATION)))
             },
-            Event::End(Tag::Item) => return false,
+            Event::End(Tag::Item) => return Some(SubsectionType::List),
+
+            Event::Start(Tag::BlockQuote) => {
+                self.new_line();
+                self.subsection = Some(Box::new(Lines::new(self.max_width - QUOTE_INDENTATION)))
+            },
+            Event::End(Tag::BlockQuote) => return Some(SubsectionType::Quote),
 
             Event::Text(ref text) if self.is_code => {
                 let mut start = 0;
@@ -179,7 +201,7 @@ impl Lines {
                 self.current_font = DEFAULT_FONT;
             },
 
-            Event::Start(Tag::Paragraph) => self.new_line(),
+            Event::Start(Tag::Paragraph) => {},
             Event::End(Tag::Paragraph) => {
                 self.new_line();
                 self.push_section(Section::space(DEFAULT_FONT_SIZE));
@@ -190,7 +212,7 @@ impl Lines {
 
             _ => {}
         };
-        true
+        None
     }
 
     pub fn push_section(&mut self, section: Section) {
@@ -380,6 +402,11 @@ impl Pages {
                     self.current_page.render_spans(&[Span::text("o".into(), DEFAULT_FONT, DEFAULT_FONT_SIZE)], start_x, self.current_y);
                     self.current_y -= delta_y;
                     self.render_sections(sections, start_x + LIST_INDENTATION);
+                },
+                Section::BlockQuote(ref sections) => {
+                    self.current_page.render_spans(&[Span::text("|".into(), DEFAULT_FONT, DEFAULT_FONT_SIZE)], start_x, self.current_y);
+                    self.current_y -= delta_y;
+                    self.render_sections(sections, start_x + QUOTE_INDENTATION);
                 },
             }
         }
