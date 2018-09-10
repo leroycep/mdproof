@@ -159,10 +159,8 @@ impl Lines {
                 self.new_line();
             },
 
-            Event::Start(Tag::Item) => {
-                self.new_line();
-                self.subsection = Some(Box::new(Lines::new(self.max_width - LIST_INDENTATION)))
-            },
+            Event::Start(Tag::List(_)) => self.new_line(),
+            Event::Start(Tag::Item) => self.subsection = Some(Box::new(Lines::new(self.max_width - LIST_INDENTATION))),
             Event::End(Tag::Item) => return Some(SubsectionType::List),
 
             Event::Start(Tag::BlockQuote) => {
@@ -195,7 +193,6 @@ impl Lines {
                 self.current_size = DEFAULT_FONT_SIZE;
             },
             Event::End(Tag::CodeBlock(_)) => {
-                self.new_line();
                 self.push_section(Section::space(DEFAULT_FONT_SIZE));
                 self.is_code = false;
                 self.current_font = DEFAULT_FONT;
@@ -258,6 +255,7 @@ impl Lines {
     }
 
     pub fn new_line(&mut self) {
+        if self.current_line.len() == 0 { return }
         self.lines.push(Section::plain(self.current_line.clone()));
         self.current_line.clear();
         self.x = 0.0;
@@ -265,7 +263,9 @@ impl Lines {
 
     pub fn get_vec(mut self) -> Vec<Section> {
         // Make sure that current_line is put into the output
-        self.lines.push(Section::plain(self.current_line));
+        if self.current_line.len() != 0 {
+            self.lines.push(Section::plain(self.current_line));
+        }
         self.lines
     }
 }
@@ -287,6 +287,15 @@ fn main() {
     }
 
     let sections = lines.get_vec();
+
+    for section in sections.iter() {
+        match section {
+            Section::Plain(v) => println!("plain: {:?}", v),
+            Section::VerticalSpace(v) => println!("vertical_space: {:?}", v),
+            Section::ListItem(v) => println!("list_item: {:?}", v),
+            Section::BlockQuote(v) => println!("block_quote: {:?}", v),
+        }
+    }
 
     let mut pages = Pages::new();
     pages.render_sections(&sections[..], MARGIN.0);
