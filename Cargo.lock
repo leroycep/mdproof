@@ -22,6 +22,14 @@ version = "0.2.43"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
+name = "mdproof"
+version = "0.1.0"
+dependencies = [
+ "pdf-canvas 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "pulldown-cmark 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "pdf-canvas"
 version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -43,14 +51,6 @@ dependencies = [
 name = "redox_syscall"
 version = "0.1.40"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-
-[[package]]
-name = "rust-mdpdf"
-version = "0.1.0"
-dependencies = [
- "pdf-canvas 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "pulldown-cmark 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
-]
 
 [[package]]
 name = "time"
