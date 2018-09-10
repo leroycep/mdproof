@@ -5,7 +5,6 @@ use pdf_canvas::{Pdf, BuiltinFont, FontSource};
 use cmark::*;
 use std::fs::File;
 use std::io::Read;
-use std::collections::VecDeque;
 
 /// PAGE_SIZE is the size of a sheet of A4 paper in pt
 const PAGE_SIZE: (f32, f32) = (595.0, 842.0);
@@ -21,6 +20,7 @@ const H3_FONT_SIZE: f32 = 20.0;
 const H4_FONT_SIZE: f32 = 16.0;
 
 const LINE_SPACING: f32 = 1.75; // Text height * LINE_SPACING
+const LIST_INDENTATION: f32 = 20.0;
 
 const DEFAULT_OUTPUT_FILENAME: &str = "test.pdf";
 
@@ -53,10 +53,11 @@ impl Span {
     }
 }
 
+#[derive(Clone, Debug)]
 enum Section {
     Plain(Vec<Span>),
     VerticalSpace(f32),
-    ListItem(VecDeque<Section>),
+    ListItem(Vec<Section>),
 }
 
 impl Section {
@@ -68,7 +69,7 @@ impl Section {
         Section::VerticalSpace(space_pt)
     }
 
-    pub fn list_item(sections: VecDeque<Section>) -> Self {
+    pub fn list_item(sections: Vec<Section>) -> Self {
         Section::ListItem(sections)
     }
 
@@ -79,11 +80,19 @@ impl Section {
             Section::ListItem(sections) => sections.iter().map(|x| x.height()).sum(),
         }
     }
+
+    pub fn min_step(&self) -> f32 {
+        match self {
+            Section::Plain(_) => self.height(),
+            Section::VerticalSpace(_) => self.height(),
+            Section::ListItem(sections) => sections.iter().take(1).map(|x| x.height()).sum(),
+        }
+    }
 }
 
 struct Lines {
     pub x: f32,
-    lines: VecDeque<Section>,
+    lines: Vec<Section>,
     current_line: Vec<Span>,
     current_font: BuiltinFont,
     current_size: f32,
@@ -96,7 +105,7 @@ impl Lines {
     pub fn new(max_width: f32) -> Self {
         Self {
             x: 0.0,
-            lines: VecDeque::new(),
+            lines: Vec::new(),
             current_line: Vec::new(),
             current_font: DEFAULT_FONT,
             current_size: DEFAULT_FONT_SIZE,
@@ -112,7 +121,7 @@ impl Lines {
             if subsection.parse_event(event) {
                 self.subsection = Some(subsection);
             } else {
-                let section = Section::list_item(subsection.get_vecdeque());
+                let section = Section::list_item(subsection.get_vec());
                 self.push_section(section);
             };
             return true;
@@ -134,7 +143,10 @@ impl Lines {
                 self.new_line();
             },
 
-            Event::Start(Tag::Item) => self.subsection = Some(Box::new(Lines::new(self.max_width - 20.0))),
+            Event::Start(Tag::Item) => {
+                self.new_line();
+                self.subsection = Some(Box::new(Lines::new(self.max_width - 20.0)))
+            },
             Event::End(Tag::Item) => return false,
 
             Event::Text(ref text) if self.is_code => {
@@ -150,33 +162,7 @@ impl Lines {
                         self.write(&text[start..]);
                 }
             },
-            Event::Text(text) => {
-                let space_width = self.current_font.get_width(self.current_size, " ");
-
-                let mut buffer = String::new();
-                let mut buffer_width = 0.0;
-                let mut pos = 0;
-                while pos < text.len() {
-                    let idx = text[pos..].find(char::is_whitespace).unwrap_or(text.len()-pos-1)+pos+1;
-                    let word = &text[pos..idx];
-                    pos = idx;
-                    let word_width = self.current_font.get_width(self.current_size, word);
-                    if self.x + buffer_width + word_width > self.max_width {
-                        self.write(&buffer);
-                        self.new_line();
-                        buffer.clear();
-                        buffer_width = 0.0;
-                    }
-                    if buffer.len() > 0 {
-                        buffer.push(' ');
-                        buffer_width += space_width;
-                    }
-                    buffer.push_str(word);
-                    buffer_width += word_width;
-                }
-                let span = Span::text(buffer, self.current_font, self.current_size);
-                self.push_span(span);
-            },
+            Event::Text(text) => self.write_left_aligned(&text),
 
             Event::Start(Tag::Code) => self.current_font = BuiltinFont::Courier,
             Event::End(Tag::Code) => self.current_font = DEFAULT_FONT,
@@ -208,7 +194,35 @@ impl Lines {
     }
 
     pub fn push_section(&mut self, section: Section) {
-        self.lines.push_back(section);
+        self.lines.push(section);
+    }
+
+    pub fn write_left_aligned(&mut self, text: &str) {
+        let space_width = self.current_font.get_width(self.current_size, " ");
+
+        let mut buffer = String::new();
+        let mut buffer_width = 0.0;
+        let mut pos = 0;
+        while pos < text.len() {
+            let idx = text[pos..].find(char::is_whitespace).unwrap_or(text.len()-pos-1)+pos+1;
+            let word = &text[pos..idx];
+            pos = idx;
+            let word_width = self.current_font.get_width(self.current_size, word);
+            if self.x + buffer_width + word_width > self.max_width {
+                self.write(&buffer);
+                self.new_line();
+                buffer.clear();
+                buffer_width = 0.0;
+            }
+            if buffer.len() > 0 {
+                buffer.push(' ');
+                buffer_width += space_width;
+            }
+            buffer.push_str(word);
+            buffer_width += word_width;
+        }
+        let span = Span::text(buffer, self.current_font, self.current_size);
+        self.push_span(span);
     }
 
     pub fn write(&mut self, text: &str) {
@@ -222,12 +236,14 @@ impl Lines {
     }
 
     pub fn new_line(&mut self) {
-        self.lines.push_back(Section::plain(self.current_line.clone()));
+        self.lines.push(Section::plain(self.current_line.clone()));
         self.current_line.clear();
         self.x = 0.0;
     }
 
-    pub fn get_vecdeque(self) -> VecDeque<Section> {
+    pub fn get_vec(mut self) -> Vec<Section> {
+        // Make sure that current_line is put into the output
+        self.lines.push(Section::plain(self.current_line));
         self.lines
     }
 }
@@ -248,42 +264,12 @@ fn main() {
         lines.parse_event(event);
     }
 
-    let mut sections = lines.get_vecdeque();
+    let sections = lines.get_vec();
 
-    let mut pages: Vec<Vec<PositionedSpan>> = vec![];
-    while sections.len() > 0 {
-        let mut y = PAGE_SIZE.1-MARGIN.1;
-        let min_y = MARGIN.1;
+    let mut pages = Pages::new();
+    pages.render_sections(&sections[..], MARGIN.0);
 
-        let mut positioned_spans = vec![];
-
-        while y > min_y {
-            let section = match sections.pop_front() {
-                Some(l) => l,
-                None => break,
-            };
-            let height = section.height();
-            let delta_y = -height * LINE_SPACING;
-            if y + delta_y < min_y {
-                sections.push_front(section);
-                break;
-            }
-            y += delta_y;
-            match section {
-                Section::Plain(spans) => {
-                    let mut x = MARGIN.0;
-                    for span in spans {
-                        positioned_spans.push(PositionedSpan::new(span.clone(), x, y));
-                        x += span.width();
-                    }
-                }
-                Section::VerticalSpace(_) => {}
-                Section::ListItem(_) => {}
-            }
-        }
-
-        pages.push(positioned_spans);
-    }
+    let pages = pages.into_vec();
 
     for page in pages {
         doc.render_page(PAGE_SIZE.0, PAGE_SIZE.1, |canvas| {
@@ -292,7 +278,7 @@ fn main() {
             let italic = canvas.get_font(ITALIC_FONT);
             let mono = canvas.get_font(BuiltinFont::Courier);
             canvas.text(|t| {
-                let mut page = page.into_iter().peekable();
+                let mut page = page.into_vec().into_iter().peekable();
                 let mut pos = match page.peek() {
                     Some(x) => x.pos.clone(),
                     None => return Ok(()),
@@ -325,6 +311,84 @@ fn main() {
     }
 
     doc.finish().unwrap();
+}
+
+#[derive(Clone)]
+struct Page {
+    positioned_spans: Vec<PositionedSpan>,
+}
+
+impl Page {
+    pub fn new() -> Self {
+        Self {
+            positioned_spans: vec![],
+        }
+    }
+
+    pub fn render_spans(&mut self, spans: &[Span], start_x: f32, start_y: f32) {
+        let mut x = start_x;
+        let y = start_y;
+        for span in spans {
+            self.positioned_spans.push(PositionedSpan::new(span.clone(), x, y));
+            x += span.width();
+        }
+    }
+
+    pub fn clear(&mut self) {
+        self.positioned_spans.clear();
+    }
+
+    pub fn into_vec(self) -> Vec<PositionedSpan> {
+        self.positioned_spans
+    }
+}
+
+struct Pages {
+    pages: Vec<Page>,
+    current_page: Page,
+    current_y: f32,
+}
+
+impl Pages {
+    pub fn new() -> Self {
+        Self {
+            pages: vec![],
+            current_page: Page::new(),
+            current_y: PAGE_SIZE.1 - MARGIN.1,
+        }
+    }
+
+    fn new_page(&mut self) {
+        self.pages.push(self.current_page.clone());
+        self.current_page.clear();
+        self.current_y = PAGE_SIZE.1 - MARGIN.1;
+    }
+
+    pub fn render_sections(&mut self, sections: &[Section], start_x: f32) {
+        let min_y = MARGIN.1;
+        for section in sections {
+            let height = section.min_step();
+            let delta_y = -height * LINE_SPACING;
+            if self.current_y + delta_y < min_y {
+                self.new_page();
+            }
+            self.current_y += delta_y;
+            match section {
+                Section::Plain(spans) => self.current_page.render_spans(&spans, start_x, self.current_y),
+                Section::VerticalSpace(_) => {}
+                Section::ListItem(ref sections) => {
+                    self.current_page.render_spans(&[Span::text("o".into(), DEFAULT_FONT, DEFAULT_FONT_SIZE)], start_x, self.current_y);
+                    self.current_y -= delta_y;
+                    self.render_sections(sections, start_x + LIST_INDENTATION);
+                },
+            }
+        }
+    }
+
+    pub fn into_vec(mut self) -> Vec<Page> {
+        self.pages.push(self.current_page);
+        self.pages
+    }
 }
 
 #[derive(Clone)]
