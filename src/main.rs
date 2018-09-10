@@ -188,6 +188,9 @@ fn main() {
                 lines.push_span(Span::text(buffer, current_font, current_size), buffer_width);
             },
 
+            Event::Start(Tag::Code) => current_font = BuiltinFont::Courier,
+            Event::End(Tag::Code) => current_font = DEFAULT_FONT,
+
             Event::Start(Tag::CodeBlock(_src_type)) => {
                 lines.is_code = true;
                 current_font = BuiltinFont::Courier;
