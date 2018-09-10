@@ -56,7 +56,7 @@ impl Span {
 enum Section {
     Plain(Vec<Span>),
     VerticalSpace(f32),
-//    ListItem(Vec<Section>),
+    ListItem(VecDeque<Section>),
 }
 
 impl Section {
@@ -68,10 +68,15 @@ impl Section {
         Section::VerticalSpace(space_pt)
     }
 
+    pub fn list_item(sections: VecDeque<Section>) -> Self {
+        Section::ListItem(sections)
+    }
+
     pub fn height(&self) -> f32 {
         match self {
             Section::Plain(spans) => spans.iter().map(|x| x.height()).fold(0.0, |x, acc| acc.max(x)),
             Section::VerticalSpace(space_pt) => *space_pt,
+            Section::ListItem(sections) => sections.iter().map(|x| x.height()).sum(),
         }
     }
 }
@@ -83,6 +88,7 @@ struct Lines {
     current_font: BuiltinFont,
     current_size: f32,
     max_width: f32,
+    subsection: Option<Box<Lines>>,
     pub is_code: bool,
 }
 
@@ -95,11 +101,22 @@ impl Lines {
             current_font: DEFAULT_FONT,
             current_size: DEFAULT_FONT_SIZE,
             max_width: max_width,
+            subsection: None,
             is_code: false,
         }
     }
 
-    pub fn parse_event(&mut self, event: Event) {
+    pub fn parse_event(&mut self, event: Event) -> bool {
+        if self.subsection.is_some() {
+            let mut subsection = self.subsection.take().unwrap();
+            if subsection.parse_event(event) {
+                self.subsection = Some(subsection);
+            } else {
+                let section = Section::list_item(subsection.get_vecdeque());
+                self.push_section(section);
+            };
+            return true;
+        }
         match event {
             Event::Start(Tag::Strong) => self.current_font = BOLD_FONT,
             Event::End(Tag::Strong) => self.current_font = DEFAULT_FONT,
@@ -117,8 +134,8 @@ impl Lines {
                 self.new_line();
             },
 
-            Event::Start(Tag::Item) => self.write(" - "),
-            Event::End(Tag::Item) => self.new_line(),
+            Event::Start(Tag::Item) => self.subsection = Some(Box::new(Lines::new(self.max_width - 20.0))),
+            Event::End(Tag::Item) => return false,
 
             Event::Text(ref text) if self.is_code => {
                 let mut start = 0;
@@ -186,7 +203,8 @@ impl Lines {
             Event::HardBreak => self.new_line(),
 
             _ => {}
-        }
+        };
+        true
     }
 
     pub fn push_section(&mut self, section: Section) {
@@ -260,6 +278,7 @@ fn main() {
                     }
                 }
                 Section::VerticalSpace(_) => {}
+                Section::ListItem(_) => {}
             }
         }
 
