@@ -41,7 +41,7 @@ impl Sectioner {
 
     pub fn parse_event(&mut self, event: Event) -> Option<SubsectionType> {
         if self.subsection.is_some() {
-            let mut subsection = self.subsection.take().unwrap();
+            let mut subsection = self.subsection.take().expect("Checked if the subsection was `Some`");
             if let Some(sub_type) = subsection.parse_event(event) {
                 let section = match sub_type {
                     SubsectionType::List => Section::list_item(subsection.get_vec()),
