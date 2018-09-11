@@ -1,5 +1,4 @@
-
-use span::{Span, PositionedSpan};
+use span::{PositionedSpan, Span};
 
 #[derive(Clone)]
 pub struct Page {
@@ -17,7 +16,8 @@ impl Page {
         let mut x = start_x;
         let y = start_y;
         for span in spans {
-            self.positioned_spans.push(PositionedSpan::new(span.clone(), x, y));
+            self.positioned_spans
+                .push(PositionedSpan::new(span.clone(), x, y));
             x += span.width();
         }
     }
@@ -30,4 +30,3 @@ impl Page {
         self.positioned_spans
     }
 }
-

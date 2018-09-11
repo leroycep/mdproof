@@ -1,21 +1,21 @@
-extern crate pulldown_cmark as cmark;
 extern crate pdf_canvas;
+extern crate pulldown_cmark as cmark;
 
-mod span;
-mod section;
-mod sectioner;
 mod page;
 mod pages;
+mod section;
+mod sectioner;
+mod span;
 
-use pdf_canvas::{Pdf, BuiltinFont};
 use cmark::*;
+use pdf_canvas::{BuiltinFont, Pdf};
 use std::fs::File;
 use std::io::Read;
 use std::io::Result;
 
-use span::Span;
-use sectioner::Sectioner;
 use pages::Pages;
+use sectioner::Sectioner;
+use span::Span;
 
 /// PAGE_SIZE is the size of a sheet of A4 paper in pt
 const PAGE_SIZE: (f32, f32) = (595.0, 842.0);
@@ -73,12 +73,16 @@ pub fn run(output_file: &str, markdown_file: &str) -> Result<()> {
                 t.set_leading(18.0)?;
                 t.pos(pos.0, pos.1)?;
                 for span in page {
-                    let delta = (span.pos.0-pos.0, span.pos.1-pos.1);
+                    let delta = (span.pos.0 - pos.0, span.pos.1 - pos.1);
                     t.pos(delta.0, delta.1)?;
                     pos = span.pos;
 
                     match span.span {
-                        Span::Text { text, font_type, font_size } => {
+                        Span::Text {
+                            text,
+                            font_type,
+                            font_size,
+                        } => {
                             let font = match font_type {
                                 BuiltinFont::Times_Roman => &regular,
                                 BuiltinFont::Times_Bold => &bold,

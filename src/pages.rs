@@ -1,12 +1,9 @@
-
-use span::Span;
-use section::Section;
 use page::Page;
+use section::Section;
+use span::Span;
 use {
-    PAGE_SIZE, MARGIN,
-    DEFAULT_FONT, DEFAULT_FONT_SIZE,
-    QUOTE_INDENTATION, LIST_INDENTATION,
-    LINE_SPACING,
+    DEFAULT_FONT, DEFAULT_FONT_SIZE, LINE_SPACING, LIST_INDENTATION, MARGIN, PAGE_SIZE,
+    QUOTE_INDENTATION,
 };
 
 pub struct Pages {
@@ -40,18 +37,29 @@ impl Pages {
             }
             self.current_y += delta_y;
             match section {
-                Section::Plain(spans) => self.current_page.render_spans(&spans, start_x, self.current_y),
+                Section::Plain(spans) => {
+                    self.current_page
+                        .render_spans(&spans, start_x, self.current_y)
+                }
                 Section::VerticalSpace(_) => {}
                 Section::ListItem(ref sections) => {
-                    self.current_page.render_spans(&[Span::text("o".into(), DEFAULT_FONT, DEFAULT_FONT_SIZE)], start_x, self.current_y);
+                    self.current_page.render_spans(
+                        &[Span::text("o".into(), DEFAULT_FONT, DEFAULT_FONT_SIZE)],
+                        start_x,
+                        self.current_y,
+                    );
                     self.current_y -= delta_y;
                     self.render_sections(sections, start_x + LIST_INDENTATION);
-                },
+                }
                 Section::BlockQuote(ref sections) => {
-                    self.current_page.render_spans(&[Span::text("|".into(), DEFAULT_FONT, DEFAULT_FONT_SIZE)], start_x, self.current_y);
+                    self.current_page.render_spans(
+                        &[Span::text("|".into(), DEFAULT_FONT, DEFAULT_FONT_SIZE)],
+                        start_x,
+                        self.current_y,
+                    );
                     self.current_y -= delta_y;
                     self.render_sections(sections, start_x + QUOTE_INDENTATION);
-                },
+                }
             }
         }
     }
@@ -61,4 +69,3 @@ impl Pages {
         self.pages
     }
 }
-

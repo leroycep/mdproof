@@ -9,7 +9,7 @@ struct Cli {
     /// The markdown file to read and render
     markdown_file: String,
     /// Where to save the generated `.pdf` to
-    #[structopt(long="out", short="o")]
+    #[structopt(long = "out", short = "o")]
     output_file: String,
 
     #[structopt(flatten)]
