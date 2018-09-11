@@ -1,11 +1,8 @@
+use super::Config;
 use cmark::{Event, Tag};
 use pdf_canvas::{BuiltinFont, FontSource};
 use section::Section;
 use span::Span;
-use {
-    H1_FONT_SIZE, H2_FONT_SIZE, H3_FONT_SIZE, H4_FONT_SIZE, BOLD_FONT, DEFAULT_FONT,
-    DEFAULT_FONT_SIZE, ITALIC_FONT, LIST_INDENTATION, QUOTE_INDENTATION,
-};
 
 pub enum SubsectionType {
     List,
@@ -21,19 +18,21 @@ pub struct Sectioner {
     max_width: f32,
     subsection: Option<Box<Sectioner>>,
     pub is_code: bool,
+    cfg: Config,
 }
 
 impl Sectioner {
-    pub fn new(max_width: f32) -> Self {
+    pub fn new(max_width: f32, cfg: &Config) -> Self {
         Self {
             x: 0.0,
             lines: Vec::new(),
             current_line: Vec::new(),
-            current_font: DEFAULT_FONT,
-            current_size: DEFAULT_FONT_SIZE,
+            current_font: cfg.default_font,
+            current_size: cfg.default_font_size,
             max_width: max_width,
             subsection: None,
             is_code: false,
+            cfg: cfg.clone(),
         }
     }
 
@@ -54,34 +53,41 @@ impl Sectioner {
             };
             return None;
         }
+        let default_font_size = self.cfg.default_font_size;
         match event {
-            Event::Start(Tag::Strong) => self.current_font = BOLD_FONT,
-            Event::End(Tag::Strong) => self.current_font = DEFAULT_FONT,
-            Event::Start(Tag::Emphasis) => self.current_font = ITALIC_FONT,
-            Event::End(Tag::Emphasis) => self.current_font = DEFAULT_FONT,
+            Event::Start(Tag::Strong) => self.current_font = self.cfg.bold_font,
+            Event::End(Tag::Strong) => self.current_font = self.cfg.default_font,
+            Event::Start(Tag::Emphasis) => self.current_font = self.cfg.italic_font,
+            Event::End(Tag::Emphasis) => self.current_font = self.cfg.default_font,
 
             Event::Start(Tag::Header(size)) => {
                 self.current_size = match size {
-                    1 => H1_FONT_SIZE,
-                    2 => H2_FONT_SIZE,
-                    3 => H3_FONT_SIZE,
-                    _ => H4_FONT_SIZE,
+                    1 => self.cfg.h1_font_size,
+                    2 => self.cfg.h2_font_size,
+                    3 => self.cfg.h3_font_size,
+                    _ => self.cfg.h4_font_size,
                 }
             }
             Event::End(Tag::Header(_)) => {
-                self.current_size = DEFAULT_FONT_SIZE;
+                self.current_size = self.cfg.default_font_size;
                 self.new_line();
             }
 
             Event::Start(Tag::List(_)) => self.new_line(),
             Event::Start(Tag::Item) => {
-                self.subsection = Some(Box::new(Sectioner::new(self.max_width - LIST_INDENTATION)))
+                self.subsection = Some(Box::new(Sectioner::new(
+                    self.max_width - self.cfg.list_indentation,
+                    &self.cfg,
+                )))
             }
             Event::End(Tag::Item) => return Some(SubsectionType::List),
 
             Event::Start(Tag::BlockQuote) => {
                 self.new_line();
-                self.subsection = Some(Box::new(Sectioner::new(self.max_width - QUOTE_INDENTATION)))
+                self.subsection = Some(Box::new(Sectioner::new(
+                    self.max_width - self.cfg.quote_indentation,
+                    &self.cfg,
+                )))
             }
             Event::End(Tag::BlockQuote) => return Some(SubsectionType::Quote),
 
@@ -101,23 +107,23 @@ impl Sectioner {
             Event::Text(text) => self.write_left_aligned(&text),
 
             Event::Start(Tag::Code) => self.current_font = BuiltinFont::Courier,
-            Event::End(Tag::Code) => self.current_font = DEFAULT_FONT,
+            Event::End(Tag::Code) => self.current_font = self.cfg.default_font,
 
             Event::Start(Tag::CodeBlock(_src_type)) => {
                 self.is_code = true;
                 self.current_font = BuiltinFont::Courier;
-                self.current_size = DEFAULT_FONT_SIZE;
+                self.current_size = self.cfg.default_font_size;
             }
             Event::End(Tag::CodeBlock(_)) => {
-                self.push_section(Section::space(DEFAULT_FONT_SIZE));
+                self.push_section(Section::space(default_font_size));
                 self.is_code = false;
-                self.current_font = DEFAULT_FONT;
+                self.current_font = self.cfg.default_font;
             }
 
             Event::Start(Tag::Paragraph) => {}
             Event::End(Tag::Paragraph) => {
                 self.new_line();
-                self.push_section(Section::space(DEFAULT_FONT_SIZE));
+                self.push_section(Section::space(default_font_size));
             }
 
             Event::SoftBreak => self.write(" "),

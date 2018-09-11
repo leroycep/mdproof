@@ -17,5 +17,6 @@ struct Cli {
 }
 
 main!(|args: Cli, log_level: verbosity| {
-    mdproof::run(&args.output_file, &args.markdown_file)?;
+    let cfg = mdproof::Config::default();
+    mdproof::run(&args.output_file, &args.markdown_file, &cfg)?;
 });

@@ -17,24 +17,50 @@ use pages::Pages;
 use sectioner::Sectioner;
 use span::Span;
 
-/// PAGE_SIZE is the size of a sheet of A4 paper in pt
-const PAGE_SIZE: (f32, f32) = (595.0, 842.0);
-const MARGIN: (f32, f32) = (50.0, 50.0);
-const DEFAULT_FONT: BuiltinFont = BuiltinFont::Times_Roman;
-const BOLD_FONT: BuiltinFont = BuiltinFont::Times_Bold;
-const ITALIC_FONT: BuiltinFont = BuiltinFont::Times_Italic;
+#[derive(Debug, Clone)]
+pub struct Config {
+    /// PAGE_SIZE is the size of a sheet of A4 paper in pt
+    page_size: (f32, f32),
+    margin: (f32, f32),
+    default_font: BuiltinFont,
+    bold_font: BuiltinFont,
+    italic_font: BuiltinFont,
 
-const DEFAULT_FONT_SIZE: f32 = 12.0;
-const H1_FONT_SIZE: f32 = 32.0;
-const H2_FONT_SIZE: f32 = 28.0;
-const H3_FONT_SIZE: f32 = 20.0;
-const H4_FONT_SIZE: f32 = 16.0;
+    default_font_size: f32,
+    h1_font_size: f32,
+    h2_font_size: f32,
+    h3_font_size: f32,
+    h4_font_size: f32,
 
-const LINE_SPACING: f32 = 1.75; // Text height * LINE_SPACING
-const LIST_INDENTATION: f32 = 20.0;
-const QUOTE_INDENTATION: f32 = 20.0;
+    line_spacing: f32, // Text height * LINE_SPACING
+    list_indentation: f32,
+    quote_indentation: f32,
+}
 
-pub fn run(output_file: &str, markdown_file: &str) -> Result<()> {
+impl Default for Config {
+    fn default() -> Self {
+        Config {
+            /// PAGE_SIZE is the size of a sheet of A4 paper in pt
+            page_size: (595.0, 842.0),
+            margin: (50.0, 50.0),
+            default_font: BuiltinFont::Times_Roman,
+            bold_font: BuiltinFont::Times_Bold,
+            italic_font: BuiltinFont::Times_Italic,
+
+            default_font_size: 12.0,
+            h1_font_size: 32.0,
+            h2_font_size: 28.0,
+            h3_font_size: 20.0,
+            h4_font_size: 16.0,
+
+            line_spacing: 1.75, // Text height * LINE_SPACING
+            list_indentation: 20.0,
+            quote_indentation: 20.0,
+        }
+    }
+}
+
+pub fn run(output_file: &str, markdown_file: &str, cfg: &Config) -> Result<()> {
     let mut doc = Pdf::create(&output_file)?;
 
     let mut markdown_file = File::open(markdown_file)?;
@@ -43,8 +69,8 @@ pub fn run(output_file: &str, markdown_file: &str) -> Result<()> {
 
     let parser = Parser::new(&markdown);
 
-    let max_width = PAGE_SIZE.0 - MARGIN.0 - MARGIN.0;
-    let mut lines = Sectioner::new(max_width);
+    let max_width = cfg.page_size.0 - cfg.margin.0 * 2.0;
+    let mut lines = Sectioner::new(max_width, cfg);
 
     for event in parser {
         lines.parse_event(event);
@@ -52,16 +78,16 @@ pub fn run(output_file: &str, markdown_file: &str) -> Result<()> {
 
     let sections = lines.get_vec();
 
-    let mut pages = Pages::new();
-    pages.render_sections(&sections[..], MARGIN.0);
+    let mut pages = Pages::new(cfg);
+    pages.render_sections(&sections[..], cfg.margin.0);
 
     let pages = pages.into_vec();
 
     for page in pages {
-        doc.render_page(PAGE_SIZE.0, PAGE_SIZE.1, |canvas| {
-            let regular = canvas.get_font(DEFAULT_FONT);
-            let bold = canvas.get_font(BOLD_FONT);
-            let italic = canvas.get_font(ITALIC_FONT);
+        doc.render_page(cfg.page_size.0, cfg.page_size.1, |canvas| {
+            let regular = canvas.get_font(cfg.default_font);
+            let bold = canvas.get_font(cfg.bold_font);
+            let italic = canvas.get_font(cfg.italic_font);
             let mono = canvas.get_font(BuiltinFont::Courier);
             canvas.text(|t| {
                 let mut page = page.into_vec().into_iter().peekable();
@@ -69,7 +95,7 @@ pub fn run(output_file: &str, markdown_file: &str) -> Result<()> {
                     Some(x) => x.pos.clone(),
                     None => return Ok(()),
                 };
-                t.set_font(&regular, DEFAULT_FONT_SIZE)?;
+                t.set_font(&regular, cfg.default_font_size)?;
                 t.set_leading(18.0)?;
                 t.pos(pos.0, pos.1)?;
                 for span in page {
