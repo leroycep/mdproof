@@ -1,19 +1,34 @@
 # `mdproof`
 
-```bash
-$ cargo run README.md -o README.pdf
-```
-
 A command line program that generates PDFs from markdown files, with no
-dependency on LaTeX or a headless browser. It's still a work in progress,
-and many features are not implemented at all. Use at your own risk.
+dependency on LaTeX or a headless browser. Still a work in progress,
+use at your own risk.
 
-## Building
+## Features
+
+- No dependency on LaTeX or any other executable
+- Lists, code blocks, regular text, bold text, and italic text!
+    - The complete commonmark spec is [still being implemented][]!
+
+[still being implemented]: https://github.com/Geemili/mdproof/issues/1
+
+![The readme rendered as a PDF](images/readme-pdf.png)
+
+## Installation
 
 ```bash
 $ git clone https://github.com/Geemili/mdproof
 $ cd mdproof
-$ cargo run test.md --out=test.pdf
+$ cargo build
+```
+
+## Usage
+
+```bash
+$ cargo run README.md
+$
+$ # Or if you've copied `mdproof` to your `~/bin` folder
+$ mdproof README.md
 ```
 
 ## Why?
