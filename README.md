@@ -12,6 +12,8 @@ use at your own risk.
 
 [still being implemented]: https://github.com/Geemili/mdproof/issues/1
 
+## Screenshots
+
 ![The readme rendered as a PDF](images/readme-pdf.png)
 
 ## Installation
