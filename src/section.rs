@@ -1,4 +1,3 @@
-
 use span::Span;
 
 #[derive(Clone, Debug)]
@@ -28,7 +27,10 @@ impl Section {
 
     pub fn height(&self) -> f32 {
         match self {
-            Section::Plain(spans) => spans.iter().map(|x| x.height()).fold(0.0, |x, acc| acc.max(x)),
+            Section::Plain(spans) => spans
+                .iter()
+                .map(|x| x.height())
+                .fold(0.0, |x, acc| acc.max(x)),
             Section::VerticalSpace(space_pt) => *space_pt,
             Section::ListItem(sections) => sections.iter().map(|x| x.height()).sum(),
             Section::BlockQuote(sections) => sections.iter().map(|x| x.height()).sum(),
@@ -44,4 +46,3 @@ impl Section {
         }
     }
 }
-

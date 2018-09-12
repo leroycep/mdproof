@@ -1,4 +1,3 @@
-
 use pdf_canvas::{BuiltinFont, FontSource};
 
 #[derive(Clone, Debug)]
@@ -13,13 +12,19 @@ pub enum Span {
 impl Span {
     pub fn text(text: String, font_type: BuiltinFont, font_size: f32) -> Self {
         Span::Text {
-            text, font_type, font_size
+            text,
+            font_type,
+            font_size,
         }
     }
 
     pub fn width(&self) -> f32 {
         match self {
-            Span::Text { text, font_type, font_size } => font_type.get_width(*font_size, text),
+            Span::Text {
+                text,
+                font_type,
+                font_size,
+            } => font_type.get_width(*font_size, text),
         }
     }
 
@@ -29,7 +34,6 @@ impl Span {
         }
     }
 }
-
 
 #[derive(Clone)]
 pub struct PositionedSpan {

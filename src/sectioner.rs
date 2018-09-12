@@ -1,13 +1,8 @@
-
-use pdf_canvas::{BuiltinFont, FontSource};
+use super::Config;
 use cmark::{Event, Tag};
-use {
-    DEFAULT_FONT, DEFAULT_FONT_SIZE, ITALIC_FONT, BOLD_FONT,
-    H1_FONT_SIZE, H2_FONT_SIZE, H3_FONT_SIZE, H4_FONT_SIZE,
-    QUOTE_INDENTATION, LIST_INDENTATION,
-};
-use span::Span;
+use pdf_canvas::{BuiltinFont, FontSource};
 use section::Section;
+use span::Span;
 
 pub enum SubsectionType {
     List,
@@ -23,25 +18,30 @@ pub struct Sectioner {
     max_width: f32,
     subsection: Option<Box<Sectioner>>,
     pub is_code: bool,
+    cfg: Config,
 }
 
 impl Sectioner {
-    pub fn new(max_width: f32) -> Self {
+    pub fn new(max_width: f32, cfg: &Config) -> Self {
         Self {
             x: 0.0,
             lines: Vec::new(),
             current_line: Vec::new(),
-            current_font: DEFAULT_FONT,
-            current_size: DEFAULT_FONT_SIZE,
+            current_font: cfg.default_font,
+            current_size: cfg.default_font_size,
             max_width: max_width,
             subsection: None,
             is_code: false,
+            cfg: cfg.clone(),
         }
     }
 
     pub fn parse_event(&mut self, event: Event) -> Option<SubsectionType> {
         if self.subsection.is_some() {
-            let mut subsection = self.subsection.take().expect("Checked if the subsection was `Some`");
+            let mut subsection = self
+                .subsection
+                .take()
+                .expect("Checked if the subsection was `Some`");
             if let Some(sub_type) = subsection.parse_event(event) {
                 let section = match sub_type {
                     SubsectionType::List => Section::list_item(subsection.get_vec()),
@@ -53,31 +53,42 @@ impl Sectioner {
             };
             return None;
         }
+        let default_font_size = self.cfg.default_font_size;
         match event {
-            Event::Start(Tag::Strong) => self.current_font = BOLD_FONT,
-            Event::End(Tag::Strong) => self.current_font = DEFAULT_FONT,
-            Event::Start(Tag::Emphasis) => self.current_font = ITALIC_FONT,
-            Event::End(Tag::Emphasis) => self.current_font = DEFAULT_FONT,
+            Event::Start(Tag::Strong) => self.current_font = self.cfg.bold_font,
+            Event::End(Tag::Strong) => self.current_font = self.cfg.default_font,
+            Event::Start(Tag::Emphasis) => self.current_font = self.cfg.italic_font,
+            Event::End(Tag::Emphasis) => self.current_font = self.cfg.default_font,
 
-            Event::Start(Tag::Header(size)) => self.current_size = match size {
-                1 => H1_FONT_SIZE,
-                2 => H2_FONT_SIZE,
-                3 => H3_FONT_SIZE,
-                _ => H4_FONT_SIZE,
-            },
+            Event::Start(Tag::Header(size)) => {
+                self.current_size = match size {
+                    1 => self.cfg.h1_font_size,
+                    2 => self.cfg.h2_font_size,
+                    3 => self.cfg.h3_font_size,
+                    _ => self.cfg.h4_font_size,
+                }
+            }
             Event::End(Tag::Header(_)) => {
-                self.current_size = DEFAULT_FONT_SIZE;
+                self.current_size = self.cfg.default_font_size;
                 self.new_line();
-            },
+            }
 
             Event::Start(Tag::List(_)) => self.new_line(),
-            Event::Start(Tag::Item) => self.subsection = Some(Box::new(Sectioner::new(self.max_width - LIST_INDENTATION))),
+            Event::Start(Tag::Item) => {
+                self.subsection = Some(Box::new(Sectioner::new(
+                    self.max_width - self.cfg.list_indentation,
+                    &self.cfg,
+                )))
+            }
             Event::End(Tag::Item) => return Some(SubsectionType::List),
 
             Event::Start(Tag::BlockQuote) => {
                 self.new_line();
-                self.subsection = Some(Box::new(Sectioner::new(self.max_width - QUOTE_INDENTATION)))
-            },
+                self.subsection = Some(Box::new(Sectioner::new(
+                    self.max_width - self.cfg.quote_indentation,
+                    &self.cfg,
+                )))
+            }
             Event::End(Tag::BlockQuote) => return Some(SubsectionType::Quote),
 
             Event::Text(ref text) if self.is_code => {
@@ -90,30 +101,30 @@ impl Sectioner {
                     }
                 }
                 if start < text.len() {
-                        self.write(&text[start..]);
+                    self.write(&text[start..]);
                 }
-            },
+            }
             Event::Text(text) => self.write_left_aligned(&text),
 
             Event::Start(Tag::Code) => self.current_font = BuiltinFont::Courier,
-            Event::End(Tag::Code) => self.current_font = DEFAULT_FONT,
+            Event::End(Tag::Code) => self.current_font = self.cfg.default_font,
 
             Event::Start(Tag::CodeBlock(_src_type)) => {
                 self.is_code = true;
                 self.current_font = BuiltinFont::Courier;
-                self.current_size = DEFAULT_FONT_SIZE;
-            },
+                self.current_size = self.cfg.default_font_size;
+            }
             Event::End(Tag::CodeBlock(_)) => {
-                self.push_section(Section::space(DEFAULT_FONT_SIZE));
+                self.push_section(Section::space(default_font_size));
                 self.is_code = false;
-                self.current_font = DEFAULT_FONT;
-            },
+                self.current_font = self.cfg.default_font;
+            }
 
-            Event::Start(Tag::Paragraph) => {},
+            Event::Start(Tag::Paragraph) => {}
             Event::End(Tag::Paragraph) => {
                 self.new_line();
-                self.push_section(Section::space(DEFAULT_FONT_SIZE));
-            },
+                self.push_section(Section::space(default_font_size));
+            }
 
             Event::SoftBreak => self.write(" "),
             Event::HardBreak => self.new_line(),
@@ -134,7 +145,9 @@ impl Sectioner {
         let mut buffer_width = 0.0;
         let mut pos = 0;
         while pos < text.len() {
-            let idx = text[pos..].find(char::is_whitespace).unwrap_or(text.len()-pos-1)+pos+1;
+            let idx = text[pos..]
+                .find(char::is_whitespace)
+                .unwrap_or(text.len() - pos - 1) + pos + 1;
             let word = &text[pos..idx];
             pos = idx;
             let word_width = self.current_font.get_width(self.current_size, word);
@@ -166,7 +179,9 @@ impl Sectioner {
     }
 
     pub fn new_line(&mut self) {
-        if self.current_line.len() == 0 { return }
+        if self.current_line.len() == 0 {
+            return;
+        }
         self.lines.push(Section::plain(self.current_line.clone()));
         self.current_line.clear();
         self.x = 0.0;
