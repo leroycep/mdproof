@@ -1,48 +1,113 @@
-use pdf_canvas::{BuiltinFont, FontSource};
+use printpdf::{Mm, Pt};
+use rusttype::{Font, Scale};
+use util::width_of_text;
+
+#[derive(PartialEq, Copy, Clone, Debug)]
+pub enum FontType {
+    Regular,
+    Bold,
+    Italic,
+    BoldItalic,
+    Mono,
+}
+
+impl FontType {
+    pub fn mono(&self) -> Self {
+        ::span::FontType::Mono
+    }
+
+    pub fn unmono(&self) -> Self {
+        ::span::FontType::Regular
+    }
+
+    pub fn bold(&self) -> Self {
+        use span::FontType::*;
+        match self {
+            Regular => Bold,
+            Italic => BoldItalic,
+            ft => *ft,
+        }
+    }
+
+    pub fn unbold(&self) -> Self {
+        use span::FontType::*;
+        match self {
+            Bold => Regular,
+            BoldItalic => Italic,
+            ft => *ft,
+        }
+    }
+
+    pub fn italic(&self) -> Self {
+        use span::FontType::*;
+        match self {
+            Regular => Italic,
+            Bold => BoldItalic,
+            ft => *ft,
+        }
+    }
+
+    pub fn unitalic(&self) -> Self {
+        use span::FontType::*;
+        match self {
+            Italic => Regular,
+            BoldItalic => Bold,
+            ft => *ft,
+        }
+    }
+}
 
 #[derive(Clone, Debug)]
-pub enum Span {
+pub enum Span<'collection> {
     Text {
         text: String,
-        font_type: BuiltinFont,
-        font_size: f32,
+        font: &'collection Font<'collection>,
+        font_type: FontType,
+        font_scale: Scale,
     },
 }
 
-impl Span {
-    pub fn text(text: String, font_type: BuiltinFont, font_size: f32) -> Self {
+impl<'collection> Span<'collection> {
+    pub fn text(
+        text: String,
+        font: &'collection Font<'collection>,
+        font_type: FontType,
+        font_scale: Scale,
+    ) -> Self {
         Span::Text {
             text,
+            font,
             font_type,
-            font_size,
+            font_scale,
         }
     }
 
-    pub fn width(&self) -> f32 {
+    pub fn width(&self) -> Mm {
         match self {
             Span::Text {
                 text,
-                font_type,
-                font_size,
-            } => font_type.get_width(*font_size, text),
+                font,
+                font_scale,
+                ..
+            } => width_of_text(&text, &font, *font_scale).into(),
         }
     }
 
-    pub fn height(&self) -> f32 {
+    pub fn height(&self) -> Mm {
         match self {
-            Span::Text { font_size, .. } => *font_size,
+            Span::Text { font_scale, .. } => Pt(font_scale.y as f64).into(),
         }
     }
 }
 
 #[derive(Clone)]
-pub struct PositionedSpan {
-    pub span: Span,
-    pub pos: (f32, f32),
+pub struct PositionedSpan<'collection> {
+    pub span: Span<'collection>,
+    pub pos: (Mm, Mm),
 }
 
-impl PositionedSpan {
-    pub fn new(span: Span, x: f32, y: f32) -> Self {
+impl<'collection> PositionedSpan<'collection> {
+    pub fn new(span: Span<'collection>, x: Mm, y: Mm) -> Self {
         let pos = (x, y);
         Self { span, pos }
     }

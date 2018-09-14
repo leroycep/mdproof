@@ -1,67 +1,93 @@
-extern crate pdf_canvas;
+extern crate failure;
+extern crate printpdf;
 extern crate pulldown_cmark as cmark;
+extern crate rusttype;
 
 mod page;
 mod pages;
 mod section;
 mod sectioner;
 mod span;
+mod util;
 
 use cmark::*;
-use pdf_canvas::{BuiltinFont, Pdf};
+use failure::{Error, ResultExt};
+use printpdf::{BuiltinFont, Mm, PdfDocument};
+use rusttype::{Font, Scale};
 use std::fs::File;
 use std::io::Read;
-use std::io::Result;
 
 use pages::Pages;
 use sectioner::Sectioner;
 use span::Span;
 
-#[derive(Debug, Clone)]
+const REGULAR_FONT: &[u8] = include_bytes!("../assets/Noto_Sans/NotoSans-Regular.ttf");
+const BOLD_FONT: &[u8] = include_bytes!("../assets/Noto_Sans/NotoSans-Bold.ttf");
+const ITALIC_FONT: &[u8] = include_bytes!("../assets/Noto_Sans/NotoSans-Italic.ttf");
+const BOLD_ITALIC_FONT: &[u8] = include_bytes!("../assets/Noto_Sans/NotoSans-BoldItalic.ttf");
+const MONO_FONT: &[u8] = include_bytes!("../assets/Inconsolata/Inconsolata-Regular.ttf");
+
+#[derive(Debug)]
 pub struct Config {
-    /// PAGE_SIZE is the size of a sheet of A4 paper in pt
-    page_size: (f32, f32),
-    margin: (f32, f32),
-    default_font: BuiltinFont,
-    bold_font: BuiltinFont,
-    italic_font: BuiltinFont,
+    page_size: (Mm, Mm),
+    margin: (Mm, Mm),
+    default_font: Font<'static>,
+    bold_font: Font<'static>,
+    italic_font: Font<'static>,
+    bold_italic_font: Font<'static>,
+    mono_font: Font<'static>,
 
-    default_font_size: f32,
-    h1_font_size: f32,
-    h2_font_size: f32,
-    h3_font_size: f32,
-    h4_font_size: f32,
+    default_font_size: Scale,
+    h1_font_size: Scale,
+    h2_font_size: Scale,
+    h3_font_size: Scale,
+    h4_font_size: Scale,
 
-    line_spacing: f32, // Text height * LINE_SPACING
-    list_indentation: f32,
-    quote_indentation: f32,
+    line_spacing: f64, // Text height * LINE_SPACING
+    list_indentation: Mm,
+    quote_indentation: Mm,
+}
+
+impl Config {
+    pub fn get_font_for_type(&self, font_type: span::FontType) -> &Font<'static> {
+        use span::FontType::*;
+        match font_type {
+            Regular => &self.default_font,
+            Bold => &self.bold_font,
+            Italic => &self.italic_font,
+            BoldItalic => &self.bold_italic_font,
+            Mono => &self.mono_font,
+        }
+    }
 }
 
 impl Default for Config {
     fn default() -> Self {
         Config {
-            /// PAGE_SIZE is the size of a sheet of A4 paper in pt
-            page_size: (595.0, 842.0),
-            margin: (50.0, 50.0),
-            default_font: BuiltinFont::Times_Roman,
-            bold_font: BuiltinFont::Times_Bold,
-            italic_font: BuiltinFont::Times_Italic,
+            page_size: (Mm(210.0), Mm(297.0)),
+            margin: (Mm(20.0), Mm(20.0)),
+            default_font: Font::from_bytes(REGULAR_FONT).expect("Static font to work"),
+            bold_font: Font::from_bytes(BOLD_FONT).expect("Static font to work"),
+            italic_font: Font::from_bytes(ITALIC_FONT).expect("Static font to work"),
+            bold_italic_font: Font::from_bytes(BOLD_ITALIC_FONT).expect("Static font to work"),
+            mono_font: Font::from_bytes(MONO_FONT).expect("Static font to work"),
 
-            default_font_size: 12.0,
-            h1_font_size: 32.0,
-            h2_font_size: 28.0,
-            h3_font_size: 20.0,
-            h4_font_size: 16.0,
+            default_font_size: Scale::uniform(12.0),
+            h1_font_size: Scale::uniform(32.0),
+            h2_font_size: Scale::uniform(28.0),
+            h3_font_size: Scale::uniform(20.0),
+            h4_font_size: Scale::uniform(16.0),
 
             line_spacing: 1.75, // Text height * LINE_SPACING
-            list_indentation: 20.0,
-            quote_indentation: 20.0,
+            list_indentation: Mm(20.0),
+            quote_indentation: Mm(20.0),
         }
     }
 }
 
-pub fn run(output_file: &str, markdown_file: &str, cfg: &Config) -> Result<()> {
-    let mut doc = Pdf::create(&output_file)?;
+pub fn run(output_file: &str, markdown_file: &str, cfg: &Config) -> Result<(), Error> {
+    let (doc, mut page_idx, mut layer_idx) =
+        PdfDocument::new("TITLE", cfg.page_size.0, cfg.page_size.1, "Layer 1");
 
     let mut markdown_file = File::open(markdown_file)?;
     let mut markdown = String::new();
@@ -83,49 +109,57 @@ pub fn run(output_file: &str, markdown_file: &str, cfg: &Config) -> Result<()> {
 
     let pages = pages.into_vec();
 
-    for page in pages {
-        doc.render_page(cfg.page_size.0, cfg.page_size.1, |canvas| {
-            let regular = canvas.get_font(cfg.default_font);
-            let bold = canvas.get_font(cfg.bold_font);
-            let italic = canvas.get_font(cfg.italic_font);
-            let mono = canvas.get_font(BuiltinFont::Courier);
-            canvas.text(|t| {
-                let mut page = page.into_vec().into_iter().peekable();
-                let mut pos = match page.peek() {
-                    Some(x) => x.pos.clone(),
-                    None => return Ok(()),
-                };
-                t.set_font(&regular, cfg.default_font_size)?;
-                t.set_leading(18.0)?;
-                t.pos(pos.0, pos.1)?;
-                for span in page {
-                    let delta = (span.pos.0 - pos.0, span.pos.1 - pos.1);
-                    t.pos(delta.0, delta.1)?;
-                    pos = span.pos;
+    let default_font_reader = std::io::Cursor::new(REGULAR_FONT);
+    let bold_font_reader = std::io::Cursor::new(BOLD_FONT);
+    let italic_font_reader = std::io::Cursor::new(ITALIC_FONT);
+    let bold_italic_font_reader = std::io::Cursor::new(BOLD_ITALIC_FONT);
+    let mono_font_reader = std::io::Cursor::new(MONO_FONT);
 
-                    match span.span {
-                        Span::Text {
-                            text,
-                            font_type,
-                            font_size,
-                        } => {
-                            let font = match font_type {
-                                BuiltinFont::Times_Roman => &regular,
-                                BuiltinFont::Times_Bold => &bold,
-                                BuiltinFont::Times_Italic => &italic,
-                                BuiltinFont::Courier => &mono,
-                                _ => &regular,
-                            };
-                            t.set_font(font, font_size)?;
-                            t.show(&text)?;
-                        }
-                    }
+    let regular = doc.add_external_font(default_font_reader)?;
+    let bold = doc.add_external_font(bold_font_reader)?;
+    let italic = doc.add_external_font(italic_font_reader)?;
+    let bold_italic = doc.add_external_font(bold_italic_font_reader)?;
+    let mono = doc.add_external_font(mono_font_reader)?;
+
+    for page in pages {
+        let current_layer = doc.get_page(page_idx).get_layer(layer_idx);
+        let mut page = page.into_vec().into_iter().peekable();
+        for span in page {
+            current_layer.begin_text_section();
+            current_layer.set_text_cursor(span.pos.0, span.pos.1);
+
+            match span.span {
+                Span::Text {
+                    text,
+                    font_type,
+                    font_scale,
+                    ..
+                } => {
+                    use span::FontType;
+                    let font = match font_type {
+                        FontType::Regular => &regular,
+                        FontType::Bold => &bold,
+                        FontType::Italic => &italic,
+                        FontType::BoldItalic => &bold_italic,
+                        FontType::Mono => &mono,
+                    };
+
+                    current_layer.set_font(font, font_scale.y as i64);
+                    current_layer.write_text(text, font);
                 }
-                Ok(())
-            })
-        })?;
+            }
+            current_layer.end_text_section();
+        }
+        let (new_page_idx, new_layer_idx) =
+            doc.add_page(cfg.page_size.0, cfg.page_size.1, "Layer 1");
+        page_idx = new_page_idx;
+        layer_idx = new_layer_idx;
     }
 
-    doc.finish()?;
+    use std::io::BufWriter;
+    let out = File::create(output_file).with_context(|_| "Failed to create pdf file")?;
+    let mut buf_writer = BufWriter::new(out);
+    doc.save(&mut buf_writer)
+        .with_context(|_| "Failed to save pdf file")?;
     Ok(())
 }

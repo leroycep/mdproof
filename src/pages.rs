@@ -1,19 +1,20 @@
 use super::Config;
 use page::Page;
+use printpdf::Mm;
 use section::Section;
 use span::Span;
 
-pub struct Pages {
-    pages: Vec<Page>,
-    current_page: Page,
-    current_y: f32,
-    cfg: Config,
+pub struct Pages<'collection> {
+    pages: Vec<Page<'collection>>,
+    current_page: Page<'collection>,
+    current_y: Mm,
+    cfg: &'collection Config,
 }
 
-impl Pages {
-    pub fn new(cfg: &Config) -> Self {
+impl<'collection> Pages<'collection> {
+    pub fn new(cfg: &'collection Config) -> Self {
         Self {
-            cfg: cfg.clone(),
+            cfg: cfg,
             pages: vec![],
             current_page: Page::new(),
             current_y: cfg.page_size.1 - cfg.margin.1,
@@ -26,11 +27,11 @@ impl Pages {
         self.current_y = self.cfg.page_size.1 - self.cfg.margin.1;
     }
 
-    pub fn render_sections(&mut self, sections: &[Section], start_x: f32) {
+    pub fn render_sections(&mut self, sections: &[Section<'collection>], start_x: Mm) {
         let min_y = self.cfg.margin.1;
         for section in sections {
             let height = section.min_step();
-            let delta_y = -height * self.cfg.line_spacing;
+            let delta_y = height * -self.cfg.line_spacing;
             if self.current_y + delta_y < min_y {
                 self.new_page();
             }
@@ -45,7 +46,8 @@ impl Pages {
                     self.current_page.render_spans(
                         &[Span::text(
                             "o".into(),
-                            self.cfg.default_font,
+                            &self.cfg.mono_font,
+                            ::span::FontType::Mono,
                             self.cfg.default_font_size,
                         )],
                         start_x,
@@ -59,7 +61,8 @@ impl Pages {
                     self.current_page.render_spans(
                         &[Span::text(
                             "|".into(),
-                            self.cfg.default_font,
+                            &self.cfg.mono_font,
+                            ::span::FontType::Mono,
                             self.cfg.default_font_size,
                         )],
                         start_x,
@@ -73,7 +76,7 @@ impl Pages {
         }
     }
 
-    pub fn into_vec(mut self) -> Vec<Page> {
+    pub fn into_vec(mut self) -> Vec<Page<'collection>> {
         self.pages.push(self.current_page);
         self.pages
     }

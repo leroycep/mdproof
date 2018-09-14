@@ -10,4 +10,6 @@ doc = false
 [dependencies]
 quicli = "0.3"
 pulldown-cmark = "0"
-pdf-canvas = "*"
+printpdf = { path = "../printpdf/" }
+rusttype = "*"
+failure = "*"

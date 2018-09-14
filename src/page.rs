@@ -1,18 +1,19 @@
+use printpdf::Mm;
 use span::{PositionedSpan, Span};
 
 #[derive(Clone)]
-pub struct Page {
-    positioned_spans: Vec<PositionedSpan>,
+pub struct Page<'collection> {
+    positioned_spans: Vec<PositionedSpan<'collection>>,
 }
 
-impl Page {
+impl<'collection> Page<'collection> {
     pub fn new() -> Self {
         Self {
             positioned_spans: vec![],
         }
     }
 
-    pub fn render_spans(&mut self, spans: &[Span], start_x: f32, start_y: f32) {
+    pub fn render_spans(&mut self, spans: &[Span<'collection>], start_x: Mm, start_y: Mm) {
         let mut x = start_x;
         let y = start_y;
         for span in spans {
@@ -26,7 +27,7 @@ impl Page {
         self.positioned_spans.clear();
     }
 
-    pub fn into_vec(self) -> Vec<PositionedSpan> {
+    pub fn into_vec(self) -> Vec<PositionedSpan<'collection>> {
         self.positioned_spans
     }
 }
