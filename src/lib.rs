@@ -13,10 +13,8 @@ mod util;
 
 use cmark::*;
 use failure::{Error, ResultExt};
-use printpdf::{Mm, PdfDocument};
+use printpdf::{Mm, PdfDocument, PdfDocumentReference};
 use rusttype::{Font, Scale};
-use std::fs::File;
-use std::io::Read;
 
 use pages::Pages;
 use sectioner::Sectioner;
@@ -89,13 +87,9 @@ impl Default for Config {
     }
 }
 
-pub fn run(output_file: &str, markdown_file: &str, cfg: &Config) -> Result<(), Error> {
+pub fn markdown_to_pdf(markdown: &str, cfg: &Config) -> Result<PdfDocumentReference, Error> {
     let (doc, mut page_idx, mut layer_idx) =
         PdfDocument::new("TITLE", cfg.page_size.0, cfg.page_size.1, "Layer 1");
-
-    let mut markdown_file = File::open(markdown_file)?;
-    let mut markdown = String::new();
-    markdown_file.read_to_string(&mut markdown)?;
 
     let parser = Parser::new(&markdown);
 
@@ -183,10 +177,5 @@ pub fn run(output_file: &str, markdown_file: &str, cfg: &Config) -> Result<(), E
         is_first_iteration = false;
     }
 
-    use std::io::BufWriter;
-    let out = File::create(output_file).with_context(|_| "Failed to create pdf file")?;
-    let mut buf_writer = BufWriter::new(out);
-    doc.save(&mut buf_writer)
-        .with_context(|_| "Failed to save pdf file")?;
-    Ok(())
+    Ok(doc)
 }

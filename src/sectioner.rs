@@ -1,7 +1,7 @@
 use super::Config;
 use cmark::{Event, Tag};
 use printpdf::Mm;
-use rusttype::{Scale};
+use rusttype::Scale;
 use section::Section;
 use span::{FontType, Span};
 use util::width_of_text;

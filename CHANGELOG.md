@@ -11,3 +11,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Rendering of unordered lists
 - Rendering of block quotes
 - Page breaks when an html element contains `style="page-break-after:always"`
+- Stdin is used as input when `-` is passed to `mdproof`
