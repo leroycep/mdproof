@@ -9,9 +9,16 @@ use std::path::Path;
 
 #[derive(Debug, StructOpt)]
 struct Cli {
-    /// The markdown file to read and render
+    /// The markdown file to read and render. If `-` is passed, the markdown will be
+    /// read from stdin.
     markdown_file: String,
-    /// Where to save the generated `.pdf` to
+
+    /// The title to put in the PDFs metadata. Defaults to the input file name,
+    /// without the extension.
+    #[structopt(long = "title")]
+    title: Option<String>,
+
+    /// Where to save the generated PDF to.
     #[structopt(long = "out", short = "o")]
     output_file: Option<String>,
 
@@ -20,25 +27,38 @@ struct Cli {
 }
 
 main!(|args: Cli, log_level: verbosity| {
+    let markdown_path = Path::new(&args.markdown_file);
     let output_path = match args.output_file {
         Some(text) => Path::new(&text).to_path_buf(),
-        None => Path::new(&args.markdown_file).with_extension("pdf"),
+        None => markdown_path.with_extension("pdf"),
     };
     let output_path = output_path
         .to_str()
         .ok_or(format_err!("Could not convert output path to string"))?;
 
-    let cfg = mdproof::Config::default();
+    let mut cfg = mdproof::Config::default();
 
     let mut markdown = String::new();
+    let mut generated_title = None;
     if args.markdown_file == "-" {
         let stdin = stdin();
         let mut stdin = stdin.lock();
         stdin.read_to_string(&mut markdown)?;
     } else {
-        let mut markdown_file = File::open(args.markdown_file)?;
+        let mut markdown_file = File::open(markdown_path)?;
         markdown_file.read_to_string(&mut markdown)?;
+
+        // Make the PDF title the stem of the markdown file
+        if let Some(file_name) = markdown_path.file_stem() {
+            generated_title = file_name.to_str().map(|s| s.into());
+        }
     }
+
+    cfg.title = match (args.title, generated_title) {
+        (Some(t), _) => t,
+        (None, Some(t)) => t,
+        (None, None) => cfg.title,
+    };
 
     let doc = mdproof::markdown_to_pdf(&markdown, &cfg)?;
 

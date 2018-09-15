@@ -12,7 +12,7 @@ mod span;
 mod util;
 
 use cmark::*;
-use failure::{Error, ResultExt};
+use failure::Error;
 use printpdf::{Mm, PdfDocument, PdfDocumentReference};
 use rusttype::{Font, Scale};
 
@@ -28,28 +28,31 @@ const MONO_FONT: &[u8] = include_bytes!("../assets/Inconsolata/Inconsolata-Regul
 
 #[derive(Debug)]
 pub struct Config {
-    page_size: (Mm, Mm),
-    margin: (Mm, Mm),
-    default_font: Font<'static>,
-    bold_font: Font<'static>,
-    italic_font: Font<'static>,
-    bold_italic_font: Font<'static>,
-    mono_font: Font<'static>,
+    pub title: String,
+    pub first_layer_name: String,
 
-    default_font_size: Scale,
-    h1_font_size: Scale,
-    h2_font_size: Scale,
-    h3_font_size: Scale,
-    h4_font_size: Scale,
+    pub page_size: (Mm, Mm),
+    pub margin: (Mm, Mm),
+    pub default_font: Font<'static>,
+    pub bold_font: Font<'static>,
+    pub italic_font: Font<'static>,
+    pub bold_italic_font: Font<'static>,
+    pub mono_font: Font<'static>,
 
-    line_spacing: f64, // Text height * LINE_SPACING
-    list_indentation: Mm,
-    list_point_offset: Mm,
-    quote_indentation: Mm,
+    pub default_font_size: Scale,
+    pub h1_font_size: Scale,
+    pub h2_font_size: Scale,
+    pub h3_font_size: Scale,
+    pub h4_font_size: Scale,
+
+    pub line_spacing: f64, // Text height * LINE_SPACING
+    pub list_indentation: Mm,
+    pub list_point_offset: Mm,
+    pub quote_indentation: Mm,
     /// The horizontal offset of code blocks
-    code_indentation: Mm,
+    pub code_indentation: Mm,
     /// The vertical space between two sections (paragraphs, lists, etc.)
-    section_spacing: Mm,
+    pub section_spacing: Mm,
 }
 
 impl Config {
@@ -68,6 +71,9 @@ impl Config {
 impl Default for Config {
     fn default() -> Self {
         Config {
+            title: "mdproof".into(),
+            first_layer_name: "Layer 1".into(),
+
             page_size: (Mm(210.0), Mm(297.0)),
             margin: (Mm(20.0), Mm(20.0)),
             default_font: Font::from_bytes(REGULAR_FONT).expect("Static font to work"),
@@ -93,8 +99,12 @@ impl Default for Config {
 }
 
 pub fn markdown_to_pdf(markdown: &str, cfg: &Config) -> Result<PdfDocumentReference, Error> {
-    let (doc, mut page_idx, mut layer_idx) =
-        PdfDocument::new("TITLE", cfg.page_size.0, cfg.page_size.1, "Layer 1");
+    let (doc, mut page_idx, mut layer_idx) = PdfDocument::new(
+        cfg.title.clone(),
+        cfg.page_size.0,
+        cfg.page_size.1,
+        cfg.first_layer_name.clone(),
+    );
 
     let parser = Parser::new(&markdown);
 
