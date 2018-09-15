@@ -93,7 +93,7 @@ impl Sectioner {
 
             Event::Text(ref text) if self.is_code => {
                 let mut start = 0;
-                for (pos, c) in text.chars().enumerate() {
+                for (pos, c) in text.char_indices() {
                     if c == '\n' {
                         self.write(&text[start..pos]);
                         self.new_line();
