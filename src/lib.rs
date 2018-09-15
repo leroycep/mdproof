@@ -147,6 +147,23 @@ pub fn run(output_file: &str, markdown_file: &str, cfg: &Config) -> Result<(), E
                     current_layer.set_font(font, font_scale.y as i64);
                     current_layer.write_text(text, font);
                 }
+                Span::Rect { width, height } => {
+                    use printpdf::{Line, Point};
+                    let rect_points = vec![
+                        (Point::new(span.pos.0, span.pos.1 + height), false),
+                        (Point::new(span.pos.0 + width, span.pos.1 + height), false),
+                        (Point::new(span.pos.0 + width, span.pos.1), false),
+                        (Point::new(span.pos.0, span.pos.1), false),
+                    ];
+                    let rect = Line {
+                        points: rect_points,
+                        is_closed: true,
+                        has_fill: true,
+                        has_stroke: false,
+                        is_clipping_path: false,
+                    };
+                    current_layer.add_shape(rect);
+                }
             }
             current_layer.end_text_section();
         }

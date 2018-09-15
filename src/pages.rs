@@ -42,6 +42,11 @@ impl<'collection> Pages<'collection> {
                         .render_spans(&spans, start_x, self.current_y)
                 }
                 Section::VerticalSpace(_) => {}
+                Section::ThematicBreak => {
+                    let r = Span::rect(self.cfg.page_size.0 - self.cfg.margin.0 - start_x, Mm(1.0));
+                    self.current_page
+                        .render_spans(&[r], start_x, self.current_y);
+                }
                 Section::ListItem(ref sections) => {
                     self.current_page.render_spans(
                         &[Span::text(

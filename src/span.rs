@@ -65,6 +65,10 @@ pub enum Span<'collection> {
         font_type: FontType,
         font_scale: Scale,
     },
+    Rect {
+        width: Mm,
+        height: Mm,
+    },
 }
 
 impl<'collection> Span<'collection> {
@@ -82,6 +86,10 @@ impl<'collection> Span<'collection> {
         }
     }
 
+    pub fn rect(width: Mm, height: Mm) -> Self {
+        Span::Rect { width, height }
+    }
+
     pub fn width(&self) -> Mm {
         match self {
             Span::Text {
@@ -90,12 +98,14 @@ impl<'collection> Span<'collection> {
                 font_scale,
                 ..
             } => width_of_text(&text, &font, *font_scale).into(),
+            Span::Rect { width, .. } => width.clone(),
         }
     }
 
     pub fn height(&self) -> Mm {
         match self {
             Span::Text { font_scale, .. } => Pt(font_scale.y as f64).into(),
+            Span::Rect { height, .. } => height.clone(),
         }
     }
 }

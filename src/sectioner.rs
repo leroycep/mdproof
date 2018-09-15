@@ -62,6 +62,9 @@ impl<'collection> Sectioner<'collection> {
             Event::Start(Tag::Emphasis) => self.current_font_type = self.current_font_type.italic(),
             Event::End(Tag::Emphasis) => self.current_font_type = self.current_font_type.unitalic(),
 
+            Event::Start(Tag::Rule) => self.push_section(Section::ThematicBreak),
+            Event::End(Tag::Rule) => {}
+
             Event::Start(Tag::Header(size)) => {
                 self.current_scale = match size {
                     1 => self.cfg.h1_font_size,
