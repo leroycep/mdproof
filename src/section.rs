@@ -6,6 +6,7 @@ pub enum Section<'collection> {
     Plain(Vec<Span<'collection>>),
     VerticalSpace(Mm),
     ThematicBreak,
+    PageBreak,
     ListItem(Vec<Section<'collection>>),
     BlockQuote(Vec<Section<'collection>>),
 }
@@ -27,6 +28,10 @@ impl<'collection> Section<'collection> {
         Section::BlockQuote(sections)
     }
 
+    pub fn page_break() -> Self {
+        Section::PageBreak
+    }
+
     pub fn height(&self) -> Mm {
         let r = match self {
             Section::Plain(spans) => spans
@@ -35,6 +40,7 @@ impl<'collection> Section<'collection> {
                 .fold(0.0, |x, acc| acc.max(x)),
             Section::VerticalSpace(space_pt) => space_pt.0,
             Section::ThematicBreak => 0.0,
+            Section::PageBreak => 0.0,
             Section::ListItem(sections) => sections.iter().map(|x| x.height().0).sum(),
             Section::BlockQuote(sections) => sections.iter().map(|x| x.height().0).sum(),
         };
@@ -46,9 +52,21 @@ impl<'collection> Section<'collection> {
             Section::Plain(_) => self.height().0,
             Section::VerticalSpace(_) => self.height().0,
             Section::ThematicBreak => self.height().0,
+            Section::PageBreak => self.height().0,
             Section::ListItem(sections) => sections.iter().take(1).map(|x| x.height().0).sum(),
             Section::BlockQuote(sections) => sections.iter().take(1).map(|x| x.height().0).sum(),
         };
         Mm(r)
+    }
+
+    pub fn is_empty(&self) -> bool {
+        match self {
+            Section::PageBreak => true,
+            Section::VerticalSpace(_) => true,
+            Section::ThematicBreak => false,
+            Section::Plain(spans) => spans.len() == 0,
+            Section::ListItem(_sections) => false,
+            Section::BlockQuote(_sections) => false,
+        }
     }
 }

@@ -47,6 +47,7 @@ impl<'collection> Pages<'collection> {
                     self.current_page
                         .render_spans(&[r], start_x, self.current_y);
                 }
+                Section::PageBreak => self.new_page(),
                 Section::ListItem(ref sections) => {
                     self.current_page.render_spans(
                         &[Span::text(

@@ -13,3 +13,4 @@ pulldown-cmark = "0"
 printpdf = { path = "../printpdf/" }
 rusttype = "*"
 failure = "*"
+scraper = "*"

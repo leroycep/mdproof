@@ -2,6 +2,7 @@ extern crate failure;
 extern crate printpdf;
 extern crate pulldown_cmark as cmark;
 extern crate rusttype;
+extern crate scraper;
 
 mod page;
 mod pages;

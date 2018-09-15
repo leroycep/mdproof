@@ -10,3 +10,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Rendering of thematic breaks
 - Rendering of unordered lists
 - Rendering of block quotes
+- Page breaks when an html element contains `style="page-break-after:always"`

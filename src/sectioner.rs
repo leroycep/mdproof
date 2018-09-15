@@ -111,6 +111,21 @@ impl<'collection> Sectioner<'collection> {
             }
             Event::Text(text) => self.write_left_aligned(&text),
 
+            Event::Html(html) => {
+                use scraper::Html;
+                let fragment = Html::parse_fragment(&html);
+
+                for value in fragment.tree.values() {
+                    let style_option = value.as_element().map(|e| e.attr("style")).unwrap_or(None);
+                    match style_option {
+                        Some("page-break-after:always;") => {
+                            self.push_section(Section::page_break())
+                        }
+                        _ => {}
+                    }
+                }
+            }
+
             Event::Start(Tag::Code) => self.current_font_type = self.current_font_type.mono(),
             Event::End(Tag::Code) => self.current_font_type = self.current_font_type.unmono(),
 
@@ -153,7 +168,9 @@ impl<'collection> Sectioner<'collection> {
         while pos < text.len() {
             let idx = text[pos..]
                 .find(char::is_whitespace)
-                .unwrap_or(text.len() - pos - 1) + pos + 1;
+                .unwrap_or(text.len() - pos - 1)
+                + pos
+                + 1;
             let word = &text[pos..idx];
             pos = idx;
             let word_width = width_of_text(word, current_font, self.current_scale).into();
@@ -207,6 +224,11 @@ impl<'collection> Sectioner<'collection> {
         // Make sure that current_line is put into the output
         if self.current_line.len() != 0 {
             self.lines.push(Section::plain(self.current_line));
+        }
+        // Check if the last section is a blank-type of section, so that we
+        // don't get an extra page at the end of the document
+        if self.lines.last().map(|t| t.is_empty()).unwrap_or(false) {
+            self.lines.pop();
         }
         self.lines
     }
