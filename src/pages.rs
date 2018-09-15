@@ -79,6 +79,13 @@ impl<'collection> Pages<'collection> {
                     let quote_indentation = self.cfg.quote_indentation;
                     self.render_sections(sections, start_x + quote_indentation);
                 }
+                Section::CodeBlock(ref lines) => {
+                    self.current_y -= delta_y;
+                    let sections: Vec<Section> =
+                        lines.iter().map(|x| Section::Plain(x.to_vec())).collect();
+                    let code_x = start_x + self.cfg.code_indentation;
+                    self.render_sections(&sections, code_x);
+                }
             }
         }
     }

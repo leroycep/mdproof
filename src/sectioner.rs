@@ -15,6 +15,7 @@ pub struct Sectioner<'collection> {
     pub x: Mm,
     lines: Vec<Section<'collection>>,
     current_line: Vec<Span<'collection>>,
+    current_code_block: Vec<Vec<Span<'collection>>>,
     current_font_type: FontType,
     current_scale: Scale,
     max_width: Mm,
@@ -29,6 +30,7 @@ impl<'collection> Sectioner<'collection> {
             x: Mm(0.0),
             lines: Vec::new(),
             current_line: Vec::new(),
+            current_code_block: Vec::new(),
             current_font_type: FontType::Regular,
             current_scale: cfg.default_font_size,
             max_width: max_width,
@@ -136,6 +138,10 @@ impl<'collection> Sectioner<'collection> {
                 self.current_scale = self.cfg.default_font_size;
             }
             Event::End(Tag::CodeBlock(_)) => {
+                let code_block = Section::code_block(self.current_code_block.clone());
+                self.push_section(code_block);
+                self.current_code_block.clear();
+
                 self.push_space();
                 self.is_code = false;
                 self.current_font_type = self.current_font_type.unmono();
@@ -221,7 +227,11 @@ impl<'collection> Sectioner<'collection> {
         if self.current_line.len() == 0 {
             return;
         }
-        self.lines.push(Section::plain(self.current_line.clone()));
+        if self.is_code {
+            self.current_code_block.push(self.current_line.clone());
+        } else {
+            self.lines.push(Section::plain(self.current_line.clone()));
+        }
         self.current_line.clear();
         self.x = Mm(0.0);
     }

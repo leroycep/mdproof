@@ -46,6 +46,8 @@ pub struct Config {
     list_indentation: Mm,
     list_point_offset: Mm,
     quote_indentation: Mm,
+    /// The horizontal offset of code blocks
+    code_indentation: Mm,
     /// The vertical space between two sections (paragraphs, lists, etc.)
     section_spacing: Mm,
 }
@@ -84,6 +86,7 @@ impl Default for Config {
             list_indentation: Mm(10.0),
             list_point_offset: Mm(5.0),
             quote_indentation: Mm(20.0),
+            code_indentation: Mm(10.0),
             section_spacing: Mm(5.0),
         }
     }

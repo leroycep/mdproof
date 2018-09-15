@@ -9,6 +9,7 @@ pub enum Section<'collection> {
     PageBreak,
     ListItem(Vec<Section<'collection>>),
     BlockQuote(Vec<Section<'collection>>),
+    CodeBlock(Vec<Vec<Span<'collection>>>),
 }
 
 impl<'collection> Section<'collection> {
@@ -28,6 +29,10 @@ impl<'collection> Section<'collection> {
         Section::BlockQuote(sections)
     }
 
+    pub fn code_block(lines: Vec<Vec<Span<'collection>>>) -> Self {
+        Section::CodeBlock(lines)
+    }
+
     pub fn page_break() -> Self {
         Section::PageBreak
     }
@@ -43,6 +48,13 @@ impl<'collection> Section<'collection> {
             Section::PageBreak => 0.0,
             Section::ListItem(sections) => sections.iter().map(|x| x.height().0).sum(),
             Section::BlockQuote(sections) => sections.iter().map(|x| x.height().0).sum(),
+            Section::CodeBlock(lines) => lines
+                .iter()
+                .map(|line| {
+                    line.iter()
+                        .map(|x| x.height().0)
+                        .fold(0.0, |x, acc| acc.max(x))
+                }).sum(),
         };
         Mm(r)
     }
@@ -55,6 +67,12 @@ impl<'collection> Section<'collection> {
             Section::PageBreak => self.height().0,
             Section::ListItem(sections) => sections.iter().take(1).map(|x| x.height().0).sum(),
             Section::BlockQuote(sections) => sections.iter().take(1).map(|x| x.height().0).sum(),
+            Section::CodeBlock(lines) => lines
+                .iter()
+                .take(1)
+                .flat_map(|x| x.iter())
+                .map(|x| x.height().0)
+                .sum(),
         };
         Mm(r)
     }
@@ -67,6 +85,7 @@ impl<'collection> Section<'collection> {
             Section::Plain(spans) => spans.len() == 0,
             Section::ListItem(_sections) => false,
             Section::BlockQuote(_sections) => false,
+            Section::CodeBlock(_lines) => false,
         }
     }
 }
