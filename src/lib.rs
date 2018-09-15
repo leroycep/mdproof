@@ -121,7 +121,16 @@ pub fn run(output_file: &str, markdown_file: &str, cfg: &Config) -> Result<(), E
     let bold_italic = doc.add_external_font(bold_italic_font_reader)?;
     let mono = doc.add_external_font(mono_font_reader)?;
 
+    let mut is_first_iteration = true;
+
     for page in pages {
+        if !is_first_iteration {
+            let (new_page_idx, new_layer_idx) =
+                doc.add_page(cfg.page_size.0, cfg.page_size.1, "Layer 1");
+            page_idx = new_page_idx;
+            layer_idx = new_layer_idx;
+        }
+
         let current_layer = doc.get_page(page_idx).get_layer(layer_idx);
         let mut page = page.into_vec().into_iter().peekable();
         for span in page {
@@ -167,10 +176,7 @@ pub fn run(output_file: &str, markdown_file: &str, cfg: &Config) -> Result<(), E
             }
             current_layer.end_text_section();
         }
-        let (new_page_idx, new_layer_idx) =
-            doc.add_page(cfg.page_size.0, cfg.page_size.1, "Layer 1");
-        page_idx = new_page_idx;
-        layer_idx = new_layer_idx;
+        is_first_iteration = false;
     }
 
     use std::io::BufWriter;
