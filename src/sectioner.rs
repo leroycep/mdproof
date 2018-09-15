@@ -55,7 +55,6 @@ impl<'collection> Sectioner<'collection> {
             };
             return None;
         }
-        let default_font_size = self.cfg.default_font_size;
         match event {
             Event::Start(Tag::Strong) => self.current_font_type = self.current_font_type.bold(),
             Event::End(Tag::Strong) => self.current_font_type = self.current_font_type.unbold(),
@@ -79,6 +78,8 @@ impl<'collection> Sectioner<'collection> {
             }
 
             Event::Start(Tag::List(_)) => self.new_line(),
+            Event::End(Tag::List(_)) => self.push_space(),
+
             Event::Start(Tag::Item) => {
                 self.subsection = Some(Box::new(Sectioner::new(
                     self.max_width - self.cfg.list_indentation,
@@ -135,7 +136,7 @@ impl<'collection> Sectioner<'collection> {
                 self.current_scale = self.cfg.default_font_size;
             }
             Event::End(Tag::CodeBlock(_)) => {
-                self.push_section(Section::space(Mm(default_font_size.y as f64)));
+                self.push_space();
                 self.is_code = false;
                 self.current_font_type = self.current_font_type.unmono();
             }
@@ -143,7 +144,7 @@ impl<'collection> Sectioner<'collection> {
             Event::Start(Tag::Paragraph) => {}
             Event::End(Tag::Paragraph) => {
                 self.new_line();
-                self.push_section(Section::space(Mm(default_font_size.y as f64)));
+                self.push_space();
             }
 
             Event::SoftBreak => self.write(" "),
@@ -152,6 +153,11 @@ impl<'collection> Sectioner<'collection> {
             _ => {}
         };
         None
+    }
+
+    pub fn push_space(&mut self) {
+        let spacing = Section::space(self.cfg.section_spacing);
+        self.push_section(spacing);
     }
 
     pub fn push_section(&mut self, section: Section<'collection>) {

@@ -47,6 +47,8 @@ pub struct Config {
     line_spacing: f64, // Text height * LINE_SPACING
     list_indentation: Mm,
     quote_indentation: Mm,
+    /// The vertical space between two sections (paragraphs, lists, etc.)
+    section_spacing: Mm,
 }
 
 impl Config {
@@ -82,6 +84,7 @@ impl Default for Config {
             line_spacing: 1.75, // Text height * LINE_SPACING
             list_indentation: Mm(20.0),
             quote_indentation: Mm(20.0),
+            section_spacing: Mm(5.0),
         }
     }
 }
