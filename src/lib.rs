@@ -13,7 +13,7 @@ mod util;
 
 use cmark::*;
 use failure::{Error, ResultExt};
-use printpdf::{BuiltinFont, Mm, PdfDocument};
+use printpdf::{Mm, PdfDocument};
 use rusttype::{Font, Scale};
 use std::fs::File;
 use std::io::Read;
