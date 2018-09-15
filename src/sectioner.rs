@@ -113,7 +113,7 @@ impl<'collection> Sectioner<'collection> {
 
             Event::Start(Tag::CodeBlock(_src_type)) => {
                 self.is_code = true;
-                self.current_font_type = self.current_font_type.unmono();
+                self.current_font_type = self.current_font_type.mono();
                 self.current_scale = self.cfg.default_font_size;
             }
             Event::End(Tag::CodeBlock(_)) => {
