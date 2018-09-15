@@ -49,6 +49,8 @@ impl<'collection> Pages<'collection> {
                 }
                 Section::PageBreak => self.new_page(),
                 Section::ListItem(ref sections) => {
+                    let list_x = start_x + self.cfg.list_indentation;
+                    let list_point_x = list_x - self.cfg.list_point_offset;
                     self.current_page.render_spans(
                         &[Span::text(
                             "o".into(),
@@ -56,12 +58,11 @@ impl<'collection> Pages<'collection> {
                             ::span::FontType::Mono,
                             self.cfg.default_font_size,
                         )],
-                        start_x,
+                        list_point_x,
                         self.current_y,
                     );
                     self.current_y -= delta_y;
-                    let list_indentation = self.cfg.list_indentation;
-                    self.render_sections(sections, start_x + list_indentation);
+                    self.render_sections(sections, list_x);
                 }
                 Section::BlockQuote(ref sections) => {
                     self.current_page.render_spans(

@@ -44,6 +44,7 @@ pub struct Config {
 
     line_spacing: f64, // Text height * LINE_SPACING
     list_indentation: Mm,
+    list_point_offset: Mm,
     quote_indentation: Mm,
     /// The vertical space between two sections (paragraphs, lists, etc.)
     section_spacing: Mm,
@@ -80,7 +81,8 @@ impl Default for Config {
             h4_font_size: Scale::uniform(16.0),
 
             line_spacing: 1.75, // Text height * LINE_SPACING
-            list_indentation: Mm(20.0),
+            list_indentation: Mm(10.0),
+            list_point_offset: Mm(5.0),
             quote_indentation: Mm(20.0),
             section_spacing: Mm(5.0),
         }
