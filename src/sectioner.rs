@@ -1,6 +1,8 @@
 use super::Config;
 use cmark::{Event, Tag};
+use image::GenericImage;
 use printpdf::Mm;
+use resources::Resources;
 use rusttype::Scale;
 use section::Section;
 use span::{FontType, Span};
@@ -21,6 +23,7 @@ pub struct Sectioner<'collection> {
     max_width: Mm,
     subsection: Option<Box<Sectioner<'collection>>>,
     pub is_code: bool,
+    is_alt_text: bool,
     cfg: &'collection Config,
 }
 
@@ -36,17 +39,22 @@ impl<'collection> Sectioner<'collection> {
             max_width: max_width,
             subsection: None,
             is_code: false,
+            is_alt_text: false,
             cfg: cfg,
         }
     }
 
-    pub fn parse_event(&mut self, event: Event) -> Option<SubsectionType> {
+    pub fn parse_event(
+        &mut self,
+        resources: &mut Resources,
+        event: Event,
+    ) -> Option<SubsectionType> {
         if self.subsection.is_some() {
             let mut subsection = self
                 .subsection
                 .take()
                 .expect("Checked if the subsection was `Some`");
-            if let Some(sub_type) = subsection.parse_event(event) {
+            if let Some(sub_type) = subsection.parse_event(resources, event) {
                 let section = match sub_type {
                     SubsectionType::List => Section::list_item(subsection.get_vec()),
                     SubsectionType::Quote => Section::block_quote(subsection.get_vec()),
@@ -77,6 +85,7 @@ impl<'collection> Sectioner<'collection> {
             Event::End(Tag::Header(_)) => {
                 self.current_scale = self.cfg.default_font_size;
                 self.new_line();
+                self.push_space();
             }
 
             Event::Start(Tag::List(_)) => self.new_line(),
@@ -98,6 +107,8 @@ impl<'collection> Sectioner<'collection> {
                 )))
             }
             Event::End(Tag::BlockQuote) => return Some(SubsectionType::Quote),
+
+            Event::Text(ref _text) if self.is_alt_text => {}
 
             Event::Text(ref text) if self.is_code => {
                 let mut start = 0;
@@ -127,6 +138,26 @@ impl<'collection> Sectioner<'collection> {
                         _ => {}
                     }
                 }
+            }
+
+            Event::Start(Tag::Image(url, _title)) => {
+                // TODO: Use title, and ignore alt-text
+                // Or should alt-text always be used?
+                if let Ok(image) = resources.load_image(url.clone().into_owned()) {
+                    let (w, h) = image.dimensions();
+                    let (w, h) = (
+                        ::printpdf::Px(w as usize).into_pt(300.0).into(),
+                        ::printpdf::Px(h as usize).into_pt(300.0).into(),
+                    );
+                    let span = Span::image(w, h, url.into_owned().into());
+                    self.push_span(span);
+                    self.is_alt_text = true;
+                } else {
+                    warn!("Couldn't load image: {:?}", url);
+                }
+            }
+            Event::End(Tag::Image(_url, _title)) => {
+                self.is_alt_text = false;
             }
 
             Event::Start(Tag::Code) => self.current_font_type = self.current_font_type.mono(),

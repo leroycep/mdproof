@@ -1,6 +1,7 @@
-use printpdf::{Mm, Pt};
+use printpdf::Mm;
 use rusttype::{Font, Scale};
-use util::width_of_text;
+use std::path::PathBuf;
+use util::{font_height, width_of_text};
 
 #[derive(PartialEq, Copy, Clone, Debug)]
 pub enum FontType {
@@ -65,6 +66,11 @@ pub enum Span<'collection> {
         font_type: FontType,
         font_scale: Scale,
     },
+    Image {
+        width: Mm,
+        height: Mm,
+        path: PathBuf,
+    },
     Rect {
         width: Mm,
         height: Mm,
@@ -86,6 +92,14 @@ impl<'collection> Span<'collection> {
         }
     }
 
+    pub fn image(width: Mm, height: Mm, path: PathBuf) -> Self {
+        Span::Image {
+            width,
+            height,
+            path,
+        }
+    }
+
     pub fn rect(width: Mm, height: Mm) -> Self {
         Span::Rect { width, height }
     }
@@ -98,13 +112,17 @@ impl<'collection> Span<'collection> {
                 font_scale,
                 ..
             } => width_of_text(&text, &font, *font_scale).into(),
+            Span::Image { width, .. } => width.clone(),
             Span::Rect { width, .. } => width.clone(),
         }
     }
 
     pub fn height(&self) -> Mm {
         match self {
-            Span::Text { font_scale, .. } => Pt(font_scale.y as f64).into(),
+            Span::Text {
+                font, font_scale, ..
+            } => font_height(font, *font_scale).into(),
+            Span::Image { height, .. } => height.clone(),
             Span::Rect { height, .. } => height.clone(),
         }
     }

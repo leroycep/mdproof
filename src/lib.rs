@@ -1,12 +1,16 @@
 #[macro_use]
 extern crate failure;
+extern crate image;
 extern crate printpdf;
 extern crate pulldown_cmark as cmark;
 extern crate rusttype;
 extern crate scraper;
+#[macro_use]
+extern crate log;
 
 mod page;
 mod pages;
+mod resources;
 mod section;
 mod sectioner;
 mod span;
@@ -14,12 +18,14 @@ mod util;
 
 use cmark::*;
 use failure::Error;
-use printpdf::{Mm, PdfDocument, PdfDocumentReference};
+use printpdf::{Image, Mm, PdfDocument, PdfDocumentReference};
 use rusttype::{Font, Scale};
 
 use pages::Pages;
+use resources::Resources;
 use sectioner::Sectioner;
 use span::Span;
+use std::path::PathBuf;
 
 const REGULAR_FONT: &[u8] = include_bytes!("../assets/Noto_Sans/NotoSans-Regular.ttf");
 const BOLD_FONT: &[u8] = include_bytes!("../assets/Noto_Sans/NotoSans-Bold.ttf");
@@ -29,6 +35,9 @@ const MONO_FONT: &[u8] = include_bytes!("../assets/Inconsolata/Inconsolata-Regul
 
 #[derive(Debug)]
 pub struct Config {
+    /// The path from which images will be loaded
+    pub resources_directory: PathBuf,
+
     pub title: String,
     pub first_layer_name: String,
 
@@ -72,6 +81,8 @@ impl Config {
 impl Default for Config {
     fn default() -> Self {
         Config {
+            resources_directory: PathBuf::new(),
+
             title: "mdproof".into(),
             first_layer_name: "Layer 1".into(),
 
@@ -89,7 +100,7 @@ impl Default for Config {
             h3_font_size: Scale::uniform(20.0),
             h4_font_size: Scale::uniform(16.0),
 
-            line_spacing: 1.75, // Text height * LINE_SPACING
+            line_spacing: 1.0, // Text height * LINE_SPACING
             list_indentation: Mm(10.0),
             list_point_offset: Mm(5.0),
             quote_indentation: Mm(20.0),
@@ -110,10 +121,11 @@ pub fn markdown_to_pdf(markdown: &str, cfg: &Config) -> Result<PdfDocumentRefere
     let parser = Parser::new(&markdown);
 
     let max_width = cfg.page_size.0 - cfg.margin.0 * 2.0;
+    let mut resources = Resources::new(cfg.resources_directory.clone());
     let mut lines = Sectioner::new(max_width, cfg);
 
     for event in parser {
-        lines.parse_event(event);
+        lines.parse_event(&mut resources, event);
     }
 
     let sections = lines.get_vec();
@@ -179,6 +191,18 @@ pub fn markdown_to_pdf(markdown: &str, cfg: &Config) -> Result<PdfDocumentRefere
 
                     current_layer.set_font(font, font_scale.y as i64);
                     current_layer.write_text(text, font);
+                }
+                Span::Image { path, .. } => {
+                    let image = Image::try_from_image(resources.load_image(path)?)?;
+                    image.add_to_layer(
+                        current_layer.clone(),
+                        Some(span.pos.0),
+                        Some(span.pos.1),
+                        None,
+                        None,
+                        None,
+                        None,
+                    );
                 }
                 Span::Rect { width, height } => {
                     use printpdf::{Line, Point};

@@ -30,6 +30,7 @@ impl<'collection> Pages<'collection> {
     pub fn render_sections(&mut self, sections: &[Section<'collection>], start_x: Mm) {
         let min_y = self.cfg.margin.1;
         for section in sections {
+            trace!("rendering section: {:?}", section);
             let height = section.min_step();
             let delta_y = height * -self.cfg.line_spacing;
             if self.current_y + delta_y < min_y {
