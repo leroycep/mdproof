@@ -101,6 +101,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "chrono"
+version = "0.4.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "num-integer 0.1.39 (registry+https://github.com/rust-lang/crates.io-index)",
+ "num-traits 0.2.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "time 0.1.40 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "clap"
 version = "2.32.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -413,6 +423,7 @@ dependencies = [
  "num-rational 0.1.42 (registry+https://github.com/rust-lang/crates.io-index)",
  "num-traits 0.2.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "png 0.12.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "scoped_threadpool 0.1.9 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -439,6 +450,7 @@ version = "0.1.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "byteorder 1.2.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rayon 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -524,7 +536,7 @@ name = "mdproof"
 version = "0.1.0"
 dependencies = [
  "failure 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "printpdf 0.2.8",
+ "printpdf 0.2.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "pulldown-cmark 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "quicli 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "rusttype 0.7.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -701,11 +713,13 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "printpdf"
 version = "0.2.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
- "chrono 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "failure 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "chrono 0.4.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "image 0.19.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "log 0.4.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "lopdf 0.15.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rand 0.5.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "rusttype 0.6.5 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -876,6 +890,11 @@ dependencies = [
 [[package]]
 name = "ryu"
 version = "0.2.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
+name = "scoped_threadpool"
+version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
@@ -1223,6 +1242,7 @@ dependencies = [
 "checksum cc 1.0.24 (registry+https://github.com/rust-lang/crates.io-index)" = "70f2a88c2e69ceee91c209d8ef25b81fc1a65f42c7f14dfd59d1fed189e514d1"
 "checksum cfg-if 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)" = "0c4e7bb64a8ebb0d856483e1e682ea3422f883c5f5615a90d51a2c82fe87fdd3"
 "checksum chrono 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)" = "158b0bd7d75cbb6bf9c25967a48a2e9f77da95876b858eadfabaa99cd069de6e"
+"checksum chrono 0.4.6 (registry+https://github.com/rust-lang/crates.io-index)" = "45912881121cb26fad7c38c17ba7daa18764771836b34fab7d3fbd93ed633878"
 "checksum clap 2.32.0 (registry+https://github.com/rust-lang/crates.io-index)" = "b957d88f4b6a63b9d70d5f454ac8011819c6efa7727858f458ab71c756ce2d3e"
 "checksum clap-verbosity-flag 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "26de1a8b4a21f6b05c99680edd48a6fded30afcf7aa13f1fa7e5c79198f5bac7"
 "checksum cloudabi 0.0.3 (registry+https://github.com/rust-lang/crates.io-index)" = "ddfc5b9aa5d4507acaf872de71051dfd0e309860e88966e1051e462a077aac4f"
@@ -1293,6 +1313,7 @@ dependencies = [
 "checksum png 0.12.0 (registry+https://github.com/rust-lang/crates.io-index)" = "f54b9600d584d3b8a739e1662a595fab051329eff43f20e7d8cc22872962145b"
 "checksum pom 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "60f6ce597ecdcc9a098e7fddacb1065093a3d66446fa16c675e7e71d1b5c28e6"
 "checksum precomputed-hash 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "925383efa346730478fb4838dbe9137d2a47675ad789c546d150a6e1dd4ab31c"
+"checksum printpdf 0.2.8 (registry+https://github.com/rust-lang/crates.io-index)" = "97ef4fb60df732b4b71ce685a2b05eaf001a69f5fff1bdea98ad363bb29c7c1c"
 "checksum proc-macro2 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)" = "1b06e2f335f48d24442b35a19df506a835fb3547bc3c06ef27340da9acf5cae7"
 "checksum proc-macro2 0.4.19 (registry+https://github.com/rust-lang/crates.io-index)" = "ffe022fb8c8bd254524b0b3305906c1921fa37a84a644e29079a9e62200c3901"
 "checksum procedural-masquerade 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)" = "9a1574a51c3fd37b26d2c0032b649d08a7d51d4cca9c41bbc5bf7118fa4509d0"
@@ -1313,6 +1334,7 @@ dependencies = [
 "checksum rusttype 0.6.5 (registry+https://github.com/rust-lang/crates.io-index)" = "320899ed15d373f4bad3c1288da0a98dd50cef5c0b2e8d21c84d327a585917c5"
 "checksum rusttype 0.7.1 (registry+https://github.com/rust-lang/crates.io-index)" = "9415443fe2539a24aed195d66a2b03643c54e14bd6f68c07ae2e2f6c2a5b8d25"
 "checksum ryu 0.2.6 (registry+https://github.com/rust-lang/crates.io-index)" = "7153dd96dade874ab973e098cb62fcdbb89a03682e46b144fd09550998d4a4a7"
+"checksum scoped_threadpool 0.1.9 (registry+https://github.com/rust-lang/crates.io-index)" = "1d51f5df5af43ab3f1360b429fa5e0152ac5ce8c0bd6485cae490332e96846a8"
 "checksum scopeguard 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)" = "94258f53601af11e6a49f722422f6e3425c52b06245a5cf9bc09908b174f5e27"
 "checksum scraper 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)" = "9c3c96f4a74b2c58e2260c199478d7b28e4fd2956830cecb8dd1bc6dae6da6c3"
 "checksum selectors 0.19.0 (registry+https://github.com/rust-lang/crates.io-index)" = "4c81ca1c531d2774be3fe90ed5dab4b2f88ca99b7bdf6a511d212fa44adf9dde"

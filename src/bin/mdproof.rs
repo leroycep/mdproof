@@ -65,5 +65,5 @@ main!(|args: Cli, log_level: verbosity| {
     let out = File::create(output_path).with_context(|_| "Failed to create pdf file")?;
     let mut buf_writer = BufWriter::new(out);
     doc.save(&mut buf_writer)
-        .with_context(|_| "Failed to save pdf file")?;
+        .map_err(|_e| format_err!("Failed to save pdf file"))?;
 });

@@ -10,7 +10,7 @@ doc = false
 [dependencies]
 quicli = "0.3"
 pulldown-cmark = "0"
-printpdf = { path = "../printpdf/" }
+printpdf = "*"
 rusttype = "*"
 failure = "*"
 scraper = "*"

@@ -1,3 +1,4 @@
+#[macro_use]
 extern crate failure;
 extern crate printpdf;
 extern crate pulldown_cmark as cmark;
@@ -128,11 +129,21 @@ pub fn markdown_to_pdf(markdown: &str, cfg: &Config) -> Result<PdfDocumentRefere
     let bold_italic_font_reader = std::io::Cursor::new(BOLD_ITALIC_FONT);
     let mono_font_reader = std::io::Cursor::new(MONO_FONT);
 
-    let regular = doc.add_external_font(default_font_reader)?;
-    let bold = doc.add_external_font(bold_font_reader)?;
-    let italic = doc.add_external_font(italic_font_reader)?;
-    let bold_italic = doc.add_external_font(bold_italic_font_reader)?;
-    let mono = doc.add_external_font(mono_font_reader)?;
+    let regular = doc
+        .add_external_font(default_font_reader)
+        .map_err(|_e| format_err!("Failed to add font to PDF"))?;
+    let bold = doc
+        .add_external_font(bold_font_reader)
+        .map_err(|_e| format_err!("Failed to add font to PDF"))?;
+    let italic = doc
+        .add_external_font(italic_font_reader)
+        .map_err(|_e| format_err!("Failed to add font to PDF"))?;
+    let bold_italic = doc
+        .add_external_font(bold_italic_font_reader)
+        .map_err(|_e| format_err!("Failed to add font to PDF"))?;
+    let mono = doc
+        .add_external_font(mono_font_reader)
+        .map_err(|_e| format_err!("Failed to add font to PDF"))?;
 
     let mut is_first_iteration = true;
 
