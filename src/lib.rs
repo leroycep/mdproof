@@ -8,6 +8,7 @@ extern crate scraper;
 #[macro_use]
 extern crate log;
 
+mod style;
 mod page;
 mod pages;
 mod resources;
