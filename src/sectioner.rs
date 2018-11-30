@@ -1,6 +1,6 @@
 use super::Config;
 use cmark::{Event, Tag};
-use image::GenericImage;
+use image::GenericImageView;
 use printpdf::Mm;
 use resources::Resources;
 use rusttype::Scale;

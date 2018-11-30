@@ -193,7 +193,7 @@ pub fn markdown_to_pdf(markdown: &str, cfg: &Config) -> Result<PdfDocumentRefere
                     current_layer.write_text(text, font);
                 }
                 Span::Image { path, .. } => {
-                    let image = Image::try_from_image(resources.load_image(path)?)?;
+                    let image = Image::from_dynamic_image(resources.load_image(path)?);
                     image.add_to_layer(
                         current_layer.clone(),
                         Some(span.pos.0),
