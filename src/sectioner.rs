@@ -3,9 +3,9 @@ use cmark::{Event, Tag};
 use image::GenericImageView;
 use printpdf::Mm;
 use resources::Resources;
-use rusttype::Scale;
 use section::Section;
-use span::{FontType, Span};
+use style::{Style, Class};
+use span::Span;
 use util::width_of_text;
 
 pub enum SubsectionType {
@@ -15,11 +15,10 @@ pub enum SubsectionType {
 
 pub struct Sectioner<'collection> {
     pub x: Mm,
-    lines: Vec<Section<'collection>>,
-    current_line: Vec<Span<'collection>>,
-    current_code_block: Vec<Vec<Span<'collection>>>,
-    current_font_type: FontType,
-    current_scale: Scale,
+    lines: Vec<Section>,
+    current_line: Vec<Span>,
+    current_code_block: Vec<Vec<Span>>,
+    current_style: Style,
     max_width: Mm,
     subsection: Option<Box<Sectioner<'collection>>>,
     pub is_code: bool,
@@ -34,8 +33,7 @@ impl<'collection> Sectioner<'collection> {
             lines: Vec::new(),
             current_line: Vec::new(),
             current_code_block: Vec::new(),
-            current_font_type: FontType::Regular,
-            current_scale: cfg.default_font_size,
+            current_style: Style::default(),
             max_width: max_width,
             subsection: None,
             is_code: false,
@@ -66,24 +64,20 @@ impl<'collection> Sectioner<'collection> {
             return None;
         }
         match event {
-            Event::Start(Tag::Strong) => self.current_font_type = self.current_font_type.bold(),
-            Event::End(Tag::Strong) => self.current_font_type = self.current_font_type.unbold(),
-            Event::Start(Tag::Emphasis) => self.current_font_type = self.current_font_type.italic(),
-            Event::End(Tag::Emphasis) => self.current_font_type = self.current_font_type.unitalic(),
+            Event::Start(Tag::Strong) => self.current_style.insert(Class::Strong),
+            Event::End(Tag::Strong) => self.current_style.remove(&Class::Strong),
+            Event::Start(Tag::Emphasis) => self.current_style.insert(Class::Emphasis),
+            Event::End(Tag::Emphasis) => self.current_style.remove(&Class::Emphasis),
+            Event::Start(Tag::Code) => self.current_style.insert(Class::Code),
+            Event::End(Tag::Code) => self.current_style.remove(&Class::Code),
+
 
             Event::Start(Tag::Rule) => self.push_section(Section::ThematicBreak),
             Event::End(Tag::Rule) => {}
 
-            Event::Start(Tag::Header(size)) => {
-                self.current_scale = match size {
-                    1 => self.cfg.h1_font_size,
-                    2 => self.cfg.h2_font_size,
-                    3 => self.cfg.h3_font_size,
-                    _ => self.cfg.h4_font_size,
-                }
-            }
-            Event::End(Tag::Header(_)) => {
-                self.current_scale = self.cfg.default_font_size;
+            Event::Start(Tag::Header(size)) => self.current_style.insert(Class::Heading(size as u8)),
+            Event::End(Tag::Header(size)) => {
+                self.current_style.remove(&Class::Heading(size as u8));
                 self.new_line();
                 self.push_space();
             }
@@ -160,13 +154,9 @@ impl<'collection> Sectioner<'collection> {
                 self.is_alt_text = false;
             }
 
-            Event::Start(Tag::Code) => self.current_font_type = self.current_font_type.mono(),
-            Event::End(Tag::Code) => self.current_font_type = self.current_font_type.unmono(),
-
             Event::Start(Tag::CodeBlock(_src_type)) => {
                 self.is_code = true;
-                self.current_font_type = self.current_font_type.mono();
-                self.current_scale = self.cfg.default_font_size;
+                self.current_style.insert(Class::Code);
             }
             Event::End(Tag::CodeBlock(_)) => {
                 let code_block = Section::code_block(self.current_code_block.clone());
@@ -175,7 +165,7 @@ impl<'collection> Sectioner<'collection> {
 
                 self.push_space();
                 self.is_code = false;
-                self.current_font_type = self.current_font_type.unmono();
+                self.current_style.remove(&Class::Code);
             }
 
             Event::Start(Tag::Paragraph) => {}
@@ -197,13 +187,12 @@ impl<'collection> Sectioner<'collection> {
         self.push_section(spacing);
     }
 
-    pub fn push_section(&mut self, section: Section<'collection>) {
+    pub fn push_section(&mut self, section: Section) {
         self.lines.push(section);
     }
 
     pub fn write_left_aligned(&mut self, text: &str) {
-        let current_font = self.cfg.get_font_for_type(self.current_font_type);
-        let space_width = width_of_text(" ", current_font, self.current_scale).into();
+        let space_width = width_of_text(self.cfg, &self.current_style, " ").into();
 
         let mut buffer = String::new();
         let mut buffer_width = Mm(0.0);
@@ -216,7 +205,7 @@ impl<'collection> Sectioner<'collection> {
                 + 1;
             let word = &text[pos..idx];
             pos = idx;
-            let word_width = width_of_text(word, current_font, self.current_scale).into();
+            let word_width = width_of_text(self.cfg, &self.current_style, word).into();
             if self.x + buffer_width + word_width > self.max_width {
                 self.write(&buffer);
                 self.new_line();
@@ -232,9 +221,7 @@ impl<'collection> Sectioner<'collection> {
         }
         let span = Span::text(
             buffer,
-            current_font,
-            self.current_font_type,
-            self.current_scale,
+            self.current_style.clone(),
         );
         self.push_span(span);
     }
@@ -242,15 +229,13 @@ impl<'collection> Sectioner<'collection> {
     pub fn write(&mut self, text: &str) {
         let span = Span::text(
             text.into(),
-            self.cfg.get_font_for_type(self.current_font_type),
-            self.current_font_type,
-            self.current_scale,
+            self.current_style.clone(),
         );
         self.push_span(span);
     }
 
-    pub fn push_span(&mut self, span: Span<'collection>) {
-        self.x += span.width();
+    pub fn push_span(&mut self, span: Span) {
+        self.x += span.width(self.cfg);
         self.current_line.push(span);
     }
 
@@ -267,7 +252,7 @@ impl<'collection> Sectioner<'collection> {
         self.x = Mm(0.0);
     }
 
-    pub fn get_vec(mut self) -> Vec<Section<'collection>> {
+    pub fn get_vec(mut self) -> Vec<Section> {
         // Make sure that current_line is put into the output
         if self.current_line.len() != 0 {
             self.lines.push(Section::plain(self.current_line));

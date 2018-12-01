@@ -3,10 +3,11 @@ use page::Page;
 use printpdf::Mm;
 use section::Section;
 use span::Span;
+use style::Class;
 
 pub struct Pages<'collection> {
-    pages: Vec<Page<'collection>>,
-    current_page: Page<'collection>,
+    pages: Vec<Page>,
+    current_page: Page,
     current_y: Mm,
     cfg: &'collection Config,
 }
@@ -27,11 +28,11 @@ impl<'collection> Pages<'collection> {
         self.current_y = self.cfg.page_size.1 - self.cfg.margin.1;
     }
 
-    pub fn render_sections(&mut self, sections: &[Section<'collection>], start_x: Mm) {
+    pub fn render_sections(&mut self, sections: &[Section], start_x: Mm) {
         let min_y = self.cfg.margin.1;
         for section in sections {
             trace!("rendering section: {:?}", section);
-            let height = section.min_step();
+            let height = section.min_step(self.cfg);
             let delta_y = height * -self.cfg.line_spacing;
             if self.current_y + delta_y < min_y {
                 self.new_page();
@@ -40,24 +41,23 @@ impl<'collection> Pages<'collection> {
             match section {
                 Section::Plain(spans) => {
                     self.current_page
-                        .render_spans(&spans, start_x, self.current_y)
+                        .render_spans(self.cfg, &spans, start_x, self.current_y)
                 }
                 Section::VerticalSpace(_) => {}
                 Section::ThematicBreak => {
                     let r = Span::rect(self.cfg.page_size.0 - self.cfg.margin.0 - start_x, Mm(1.0));
                     self.current_page
-                        .render_spans(&[r], start_x, self.current_y);
+                        .render_spans(self.cfg, &[r], start_x, self.current_y);
                 }
                 Section::PageBreak => self.new_page(),
                 Section::ListItem(ref sections) => {
                     let list_x = start_x + self.cfg.list_indentation;
                     let list_point_x = list_x - self.cfg.list_point_offset;
                     self.current_page.render_spans(
+                        self.cfg,
                         &[Span::text(
                             "o".into(),
-                            &self.cfg.mono_font,
-                            ::span::FontType::Mono,
-                            self.cfg.default_font_size,
+                            [Class::Code].iter().into(),
                         )],
                         list_point_x,
                         self.current_y,
@@ -67,11 +67,10 @@ impl<'collection> Pages<'collection> {
                 }
                 Section::BlockQuote(ref sections) => {
                     self.current_page.render_spans(
+                        self.cfg,
                         &[Span::text(
                             "|".into(),
-                            &self.cfg.mono_font,
-                            ::span::FontType::Mono,
-                            self.cfg.default_font_size,
+                            [Class::Code].iter().into(),
                         )],
                         start_x,
                         self.current_y,
@@ -91,7 +90,7 @@ impl<'collection> Pages<'collection> {
         }
     }
 
-    pub fn into_vec(mut self) -> Vec<Page<'collection>> {
+    pub fn into_vec(mut self) -> Vec<Page> {
         self.pages.push(self.current_page);
         self.pages
     }

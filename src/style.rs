@@ -25,6 +25,10 @@ impl Style {
     pub fn remove(&mut self, class: &Class) {
         self.0.remove(class);
     }
+
+    pub fn contains(&self, class: &Class) -> bool {
+        self.0.contains(class)
+    }
 }
 
 impl Default for Style {
