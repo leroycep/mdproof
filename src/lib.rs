@@ -11,6 +11,7 @@ extern crate log;
 mod style;
 mod page;
 mod pages;
+mod atomizer;
 mod resources;
 mod section;
 mod sectioner;
