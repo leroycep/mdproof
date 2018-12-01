@@ -1,19 +1,20 @@
+use Config;
 use printpdf::Mm;
 use span::Span;
 
 #[derive(Clone, Debug)]
-pub enum Section<'collection> {
-    Plain(Vec<Span<'collection>>),
+pub enum Section {
+    Plain(Vec<Span>),
     VerticalSpace(Mm),
     ThematicBreak,
     PageBreak,
-    ListItem(Vec<Section<'collection>>),
-    BlockQuote(Vec<Section<'collection>>),
-    CodeBlock(Vec<Vec<Span<'collection>>>),
+    ListItem(Vec<Section>),
+    BlockQuote(Vec<Section>),
+    CodeBlock(Vec<Vec<Span>>),
 }
 
-impl<'collection> Section<'collection> {
-    pub fn plain(spans: Vec<Span<'collection>>) -> Self {
+impl Section {
+    pub fn plain(spans: Vec<Span>) -> Self {
         Section::Plain(spans)
     }
 
@@ -21,15 +22,15 @@ impl<'collection> Section<'collection> {
         Section::VerticalSpace(height)
     }
 
-    pub fn list_item(sections: Vec<Section<'collection>>) -> Self {
+    pub fn list_item(sections: Vec<Section>) -> Self {
         Section::ListItem(sections)
     }
 
-    pub fn block_quote(sections: Vec<Section<'collection>>) -> Self {
+    pub fn block_quote(sections: Vec<Section>) -> Self {
         Section::BlockQuote(sections)
     }
 
-    pub fn code_block(lines: Vec<Vec<Span<'collection>>>) -> Self {
+    pub fn code_block(lines: Vec<Vec<Span>>) -> Self {
         Section::CodeBlock(lines)
     }
 
@@ -37,41 +38,41 @@ impl<'collection> Section<'collection> {
         Section::PageBreak
     }
 
-    pub fn height(&self) -> Mm {
+    pub fn height(&self, cfg: &Config) -> Mm {
         let r = match self {
             Section::Plain(spans) => spans
                 .iter()
-                .map(|x| x.height().0)
+                .map(|x| x.height(cfg).0)
                 .fold(0.0, |x, acc| acc.max(x)),
             Section::VerticalSpace(space_pt) => space_pt.0,
             Section::ThematicBreak => 0.0,
             Section::PageBreak => 0.0,
-            Section::ListItem(sections) => sections.iter().map(|x| x.height().0).sum(),
-            Section::BlockQuote(sections) => sections.iter().map(|x| x.height().0).sum(),
+            Section::ListItem(sections) => sections.iter().map(|x| x.height(cfg).0).sum(),
+            Section::BlockQuote(sections) => sections.iter().map(|x| x.height(cfg).0).sum(),
             Section::CodeBlock(lines) => lines
                 .iter()
                 .map(|line| {
                     line.iter()
-                        .map(|x| x.height().0)
+                        .map(|x| x.height(cfg).0)
                         .fold(0.0, |x, acc| acc.max(x))
                 }).sum(),
         };
         Mm(r)
     }
 
-    pub fn min_step(&self) -> Mm {
+    pub fn min_step(&self, cfg: &Config) -> Mm {
         let r = match self {
-            Section::Plain(_) => self.height().0,
-            Section::VerticalSpace(_) => self.height().0,
-            Section::ThematicBreak => self.height().0,
-            Section::PageBreak => self.height().0,
-            Section::ListItem(sections) => sections.iter().take(1).map(|x| x.height().0).sum(),
-            Section::BlockQuote(sections) => sections.iter().take(1).map(|x| x.height().0).sum(),
+            Section::Plain(_) => self.height(cfg).0,
+            Section::VerticalSpace(_) => self.height(cfg).0,
+            Section::ThematicBreak => self.height(cfg).0,
+            Section::PageBreak => self.height(cfg).0,
+            Section::ListItem(sections) => sections.iter().take(1).map(|x| x.height(cfg).0).sum(),
+            Section::BlockQuote(sections) => sections.iter().take(1).map(|x| x.height(cfg).0).sum(),
             Section::CodeBlock(lines) => lines
                 .iter()
                 .take(1)
                 .flat_map(|x| x.iter())
-                .map(|x| x.height().0)
+                .map(|x| x.height(cfg).0)
                 .sum(),
         };
         Mm(r)

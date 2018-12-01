@@ -8,8 +8,10 @@ extern crate scraper;
 #[macro_use]
 extern crate log;
 
+mod style;
 mod page;
 mod pages;
+mod atomizer;
 mod resources;
 mod section;
 mod sectioner;
@@ -26,6 +28,7 @@ use resources::Resources;
 use sectioner::Sectioner;
 use span::Span;
 use std::path::PathBuf;
+use style::Class;
 
 const REGULAR_FONT: &[u8] = include_bytes!("../assets/Noto_Sans/NotoSans-Regular.ttf");
 const BOLD_FONT: &[u8] = include_bytes!("../assets/Noto_Sans/NotoSans-Bold.ttf");
@@ -63,19 +66,6 @@ pub struct Config {
     pub code_indentation: Mm,
     /// The vertical space between two sections (paragraphs, lists, etc.)
     pub section_spacing: Mm,
-}
-
-impl Config {
-    pub fn get_font_for_type(&self, font_type: span::FontType) -> &Font<'static> {
-        use span::FontType::*;
-        match font_type {
-            Regular => &self.default_font,
-            Bold => &self.bold_font,
-            Italic => &self.italic_font,
-            BoldItalic => &self.bold_italic_font,
-            Mono => &self.mono_font,
-        }
-    }
 }
 
 impl Default for Config {
@@ -118,13 +108,13 @@ pub fn markdown_to_pdf(markdown: &str, cfg: &Config) -> Result<PdfDocumentRefere
         cfg.first_layer_name.clone(),
     );
 
-    let parser = Parser::new(&markdown);
+    let atomizer = atomizer::Atomizer::new(Parser::new(&markdown));
 
     let max_width = cfg.page_size.0 - cfg.margin.0 * 2.0;
     let mut resources = Resources::new(cfg.resources_directory.clone());
     let mut lines = Sectioner::new(max_width, cfg);
 
-    for event in parser {
+    for event in atomizer {
         lines.parse_event(&mut resources, event);
     }
 
@@ -176,18 +166,26 @@ pub fn markdown_to_pdf(markdown: &str, cfg: &Config) -> Result<PdfDocumentRefere
             match span.span {
                 Span::Text {
                     text,
-                    font_type,
-                    font_scale,
+                    style,
                     ..
                 } => {
-                    use span::FontType;
-                    let font = match font_type {
-                        FontType::Regular => &regular,
-                        FontType::Bold => &bold,
-                        FontType::Italic => &italic,
-                        FontType::BoldItalic => &bold_italic,
-                        FontType::Mono => &mono,
+                    // TODO: Abstract this piece of code away. It violates DRY.
+                    let strong = style.contains(&Class::Strong);
+                    let emphasis = style.contains(&Class::Emphasis);
+
+                    let font = if style.contains(&Class::Code) {
+                        &mono
+                    } else if  strong && emphasis {
+                        &bold_italic
+                    } else if strong {
+                        &bold
+                    } else if emphasis {
+                        &italic
+                    } else {
+                        &regular
                     };
+
+                    let font_scale = util::scale_from_style(&cfg, &style);
 
                     current_layer.set_font(font, font_scale.y as i64);
                     current_layer.write_text(text, font);
