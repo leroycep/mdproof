@@ -40,6 +40,7 @@ pub enum Atom<'src> {
 
 #[derive(Debug)]
 pub enum Break {
+    Word,
     Line,
     Paragraph,
     HorizontalRule,
@@ -88,14 +89,14 @@ impl<'src> Atomizer<'src> {
     }
 
     fn split_text(&mut self, text: Cow<'src, str>) -> (Option<Event<'src>>, AtomizerState<'src>) {
-        if text.len() == 0 {
+        if text.len() == 0 || self.is_alt_text {
             return (None, AtomizerState::Parsing);
         }
         match text.chars().next().expect("string len must be > 0") {
             ' ' => if self.is_code {
                 return (Some(Event::Atom(Atom::Text { text: " ".into(), style: self.current_style.clone() })), AtomizerState::Splitting(Cow::Owned(text[1..].into())))
             } else {
-                return (None, AtomizerState::Splitting(Cow::Owned(text[1..].into())))
+                return (Some(Event::Break(Break::Word)), AtomizerState::Splitting(Cow::Owned(text[1..].into())))
             }
             '\n' => return (Some(Event::Break(Break::Line)), AtomizerState::Splitting(Cow::Owned(text[1..].into()))),
             _ => {}
@@ -106,8 +107,7 @@ impl<'src> Atomizer<'src> {
         let style = self.current_style.clone();
         for (idx, c) in text.char_indices() {
             let end = match c {
-                ' ' => Some(idx+1),
-                '\n' => Some(idx),
+                ' ' | '\n' => Some(idx),
                 _ => None,
             };
             if let Some(idx) = end {
@@ -117,19 +117,6 @@ impl<'src> Atomizer<'src> {
             }
         }
         (Some(Event::Atom(Atom::Text { text, style })), AtomizerState::Parsing)
-        /*
-        let mut start = 0;
-        for (pos, c) in text.char_indices() {
-            if c == '\n' {
-                self.write(&text[start..pos]);
-                self.new_line();
-                start = pos + 1;
-            }
-        }
-        if start < text.len() {
-            self.write(&text[start..]);
-        }
-        */
     }
 
     fn parse_event(&mut self, event: ParseEvent<'src>) -> (Option<Event<'src>>, AtomizerState<'src>) {
@@ -200,7 +187,7 @@ impl<'src> Atomizer<'src> {
             ParseEvent::Start(Tag::Paragraph) => {}
             ParseEvent::End(Tag::Paragraph) => return (Some(Event::Break(Break::Paragraph)), AtomizerState::Parsing),
 
-            ParseEvent::SoftBreak => {},
+            ParseEvent::SoftBreak => return (Some(Event::Break(Break::Word)), AtomizerState::Parsing),
             ParseEvent::HardBreak => return (Some(Event::Break(Break::Line)), AtomizerState::Parsing),
 
             _ => {}

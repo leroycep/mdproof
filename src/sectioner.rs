@@ -88,6 +88,12 @@ impl<'collection> Sectioner<'collection> {
                 self.write_left_aligned(&text, &style);
             }
 
+            AtomizerEvent::Break(Break::Word) => {
+                if self.x > Mm(0.0) {
+                    self.write(" ", &Style::default());
+                }
+            }
+
             AtomizerEvent::Break(Break::Page) => {
                 self.push_section(Section::page_break())
             }
