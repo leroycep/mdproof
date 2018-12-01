@@ -3,7 +3,7 @@ use std::borrow::Cow;
 use cmark::{Parser, Event as ParseEvent, Tag};
 use style::{Style, Class};
 
-struct Atomizer<'src> {
+pub struct Atomizer<'src> {
     state: AtomizerState<'src>,
     parser: Parser<'src>,
     current_style: Style,
@@ -11,6 +11,7 @@ struct Atomizer<'src> {
     is_alt_text: bool,
 }
 
+#[derive(Debug)]
 enum AtomizerState<'src> {
     /// The atomizer is splitting text apart
     Splitting(Cow<'src, str>),
@@ -18,14 +19,16 @@ enum AtomizerState<'src> {
     Parsing,
 }
 
-enum Event<'src> {
+#[derive(Debug)]
+pub enum Event<'src> {
     Atom(Atom<'src>),
     Break(Break),
     StartBlock(BlockTag),
     EndBlock(BlockTag),
 }
 
-enum Atom<'src> {
+#[derive(Debug)]
+pub enum Atom<'src> {
     Text {
         text: Cow<'src, str>,
         style: Style,
@@ -35,14 +38,16 @@ enum Atom<'src> {
     },
 }
 
-enum Break {
+#[derive(Debug)]
+pub enum Break {
     Line,
     Paragraph,
     HorizontalRule,
     Page,
 }
 
-enum BlockTag {
+#[derive(Debug)]
+pub enum BlockTag {
     BlockQuote,
     CodeBlock,
     List(Option<usize>),
@@ -72,22 +77,48 @@ impl<'src> Iterator for Atomizer<'src> {
 }
 
 impl<'src> Atomizer<'src> {
+    pub fn new(parser: Parser<'src>) -> Self {
+        Atomizer {
+            state: AtomizerState::Parsing,
+            parser: parser,
+            current_style: Style::default(),
+            is_code: false,
+            is_alt_text: false,
+        }
+    }
+
     fn split_text(&mut self, text: Cow<'src, str>) -> (Option<Event<'src>>, AtomizerState<'src>) {
-        if text == "" {
+        if text.len() == 0 {
             return (None, AtomizerState::Parsing);
         }
-        let idx = text
-            .find(char::is_whitespace)
-            .unwrap_or(text.len());
-        // TODO: Figure out if I can keep these COWs borrowed
-        let remainder = Cow::Owned(text[idx..].into());
-        let text = Cow::Owned(text[..idx].into());
+        match text.chars().next().expect("string len must be > 0") {
+            ' ' => if self.is_code {
+                return (Some(Event::Atom(Atom::Text { text: " ".into(), style: self.current_style.clone() })), AtomizerState::Splitting(Cow::Owned(text[1..].into())))
+            } else {
+                return (None, AtomizerState::Splitting(Cow::Owned(text[1..].into())))
+            }
+            '\n' => return (Some(Event::Break(Break::Line)), AtomizerState::Splitting(Cow::Owned(text[1..].into()))),
+            _ => {}
+        }
+        if text.chars().next().map(|c| c.is_whitespace()).unwrap_or(false) {
+            return (None, AtomizerState::Splitting(Cow::Owned(text[1..].into())));
+        }
         let style = self.current_style.clone();
-        (Some(Event::Atom(Atom::Text { text, style })), AtomizerState::Splitting(remainder))
-
+        for (idx, c) in text.char_indices() {
+            let end = match c {
+                ' ' => Some(idx+1),
+                '\n' => Some(idx),
+                _ => None,
+            };
+            if let Some(idx) = end {
+                let remainder = Cow::Owned(text[idx..].into());
+                let text = Cow::Owned(text[..idx].into());
+                return (Some(Event::Atom(Atom::Text { text, style })), AtomizerState::Splitting(remainder));
+            }
+        }
+        (Some(Event::Atom(Atom::Text { text, style })), AtomizerState::Parsing)
         /*
         let mut start = 0;
-        return (Some(Event::Break(Break::HorizontalRule)), AtomizerState::Parsing)
         for (pos, c) in text.char_indices() {
             if c == '\n' {
                 self.write(&text[start..pos]);
@@ -124,7 +155,7 @@ impl<'src> Atomizer<'src> {
             ParseEvent::End(Tag::List(first_number)) => return (Some(Event::EndBlock(BlockTag::List(first_number))), AtomizerState::Parsing),
 
             ParseEvent::Start(Tag::Item) => return (Some(Event::StartBlock(BlockTag::ListItem)), AtomizerState::Parsing),
-            ParseEvent::End(Tag::Item) => return (Some(Event::StartBlock(BlockTag::ListItem)), AtomizerState::Parsing),
+            ParseEvent::End(Tag::Item) => return (Some(Event::EndBlock(BlockTag::ListItem)), AtomizerState::Parsing),
 
             ParseEvent::Start(Tag::BlockQuote) => return (Some(Event::StartBlock(BlockTag::BlockQuote)), AtomizerState::Parsing),
             ParseEvent::End(Tag::BlockQuote) => return (Some(Event::EndBlock(BlockTag::BlockQuote)), AtomizerState::Parsing),
@@ -157,11 +188,13 @@ impl<'src> Atomizer<'src> {
             ParseEvent::Start(Tag::CodeBlock(_src_type)) => {
                 self.is_code = true;
                 self.current_style.insert(Class::Code);
+                self.current_style.insert(Class::Code);
+                return (Some(Event::StartBlock(BlockTag::CodeBlock)), AtomizerState::Parsing);
             }
             ParseEvent::End(Tag::CodeBlock(_)) => {
                 self.is_code = false;
                 self.current_style.remove(&Class::Code);
-                return (Some(Event::Break(Break::Paragraph)), AtomizerState::Parsing);
+                return (Some(Event::EndBlock(BlockTag::CodeBlock)), AtomizerState::Parsing);
             }
 
             ParseEvent::Start(Tag::Paragraph) => {}

@@ -108,13 +108,13 @@ pub fn markdown_to_pdf(markdown: &str, cfg: &Config) -> Result<PdfDocumentRefere
         cfg.first_layer_name.clone(),
     );
 
-    let parser = Parser::new(&markdown);
+    let atomizer = atomizer::Atomizer::new(Parser::new(&markdown));
 
     let max_width = cfg.page_size.0 - cfg.margin.0 * 2.0;
     let mut resources = Resources::new(cfg.resources_directory.clone());
     let mut lines = Sectioner::new(max_width, cfg);
 
-    for event in parser {
+    for event in atomizer {
         lines.parse_event(&mut resources, event);
     }
 

@@ -1,12 +1,12 @@
 use super::Config;
-use cmark::{Event, Tag};
 use image::GenericImageView;
 use printpdf::Mm;
 use resources::Resources;
 use section::Section;
-use style::{Style, Class};
+use style::Style;
 use span::Span;
 use util::width_of_text;
+use atomizer::{Atom, Event as AtomizerEvent, BlockTag, Break};
 
 pub enum SubsectionType {
     List,
@@ -18,7 +18,6 @@ pub struct Sectioner<'collection> {
     lines: Vec<Section>,
     current_line: Vec<Span>,
     current_code_block: Vec<Vec<Span>>,
-    current_style: Style,
     max_width: Mm,
     subsection: Option<Box<Sectioner<'collection>>>,
     pub is_code: bool,
@@ -33,7 +32,6 @@ impl<'collection> Sectioner<'collection> {
             lines: Vec::new(),
             current_line: Vec::new(),
             current_code_block: Vec::new(),
-            current_style: Style::default(),
             max_width: max_width,
             subsection: None,
             is_code: false,
@@ -45,7 +43,7 @@ impl<'collection> Sectioner<'collection> {
     pub fn parse_event(
         &mut self,
         resources: &mut Resources,
-        event: Event,
+        event: AtomizerEvent,
     ) -> Option<SubsectionType> {
         if self.subsection.is_some() {
             let mut subsection = self
@@ -64,120 +62,72 @@ impl<'collection> Sectioner<'collection> {
             return None;
         }
         match event {
-            Event::Start(Tag::Strong) => self.current_style.insert(Class::Strong),
-            Event::End(Tag::Strong) => self.current_style.remove(&Class::Strong),
-            Event::Start(Tag::Emphasis) => self.current_style.insert(Class::Emphasis),
-            Event::End(Tag::Emphasis) => self.current_style.remove(&Class::Emphasis),
-            Event::Start(Tag::Code) => self.current_style.insert(Class::Code),
-            Event::End(Tag::Code) => self.current_style.remove(&Class::Code),
+            AtomizerEvent::Break(Break::HorizontalRule) => self.push_section(Section::ThematicBreak),
 
+            AtomizerEvent::StartBlock(BlockTag::List(_)) => self.new_line(),
+            AtomizerEvent::EndBlock(BlockTag::List(_)) => self.push_space(),
 
-            Event::Start(Tag::Rule) => self.push_section(Section::ThematicBreak),
-            Event::End(Tag::Rule) => {}
-
-            Event::Start(Tag::Header(size)) => self.current_style.insert(Class::Heading(size as u8)),
-            Event::End(Tag::Header(size)) => {
-                self.current_style.remove(&Class::Heading(size as u8));
-                self.new_line();
-                self.push_space();
-            }
-
-            Event::Start(Tag::List(_)) => self.new_line(),
-            Event::End(Tag::List(_)) => self.push_space(),
-
-            Event::Start(Tag::Item) => {
+            AtomizerEvent::StartBlock(BlockTag::ListItem) => {
                 self.subsection = Some(Box::new(Sectioner::new(
                     self.max_width - self.cfg.list_indentation,
                     &self.cfg,
                 )))
             }
-            Event::End(Tag::Item) => return Some(SubsectionType::List),
+            AtomizerEvent::EndBlock(BlockTag::ListItem) => return Some(SubsectionType::List),
 
-            Event::Start(Tag::BlockQuote) => {
+            AtomizerEvent::StartBlock(BlockTag::BlockQuote) => {
                 self.new_line();
                 self.subsection = Some(Box::new(Sectioner::new(
                     self.max_width - self.cfg.quote_indentation,
                     &self.cfg,
                 )))
             }
-            Event::End(Tag::BlockQuote) => return Some(SubsectionType::Quote),
+            AtomizerEvent::EndBlock(BlockTag::BlockQuote) => return Some(SubsectionType::Quote),
 
-            Event::Text(ref _text) if self.is_alt_text => {}
-
-            Event::Text(ref text) if self.is_code => {
-                let mut start = 0;
-                for (pos, c) in text.char_indices() {
-                    if c == '\n' {
-                        self.write(&text[start..pos]);
-                        self.new_line();
-                        start = pos + 1;
-                    }
-                }
-                if start < text.len() {
-                    self.write(&text[start..]);
-                }
-            }
-            Event::Text(text) => self.write_left_aligned(&text),
-
-            Event::Html(html) => {
-                use scraper::Html;
-                let fragment = Html::parse_fragment(&html);
-
-                for value in fragment.tree.values() {
-                    let style_option = value.as_element().map(|e| e.attr("style")).unwrap_or(None);
-                    match style_option {
-                        Some("page-break-after:always;") => {
-                            self.push_section(Section::page_break())
-                        }
-                        _ => {}
-                    }
-                }
+            AtomizerEvent::Atom(Atom::Text { text, style }) => {
+                self.write_left_aligned(&text, &style);
             }
 
-            Event::Start(Tag::Image(url, _title)) => {
+            AtomizerEvent::Break(Break::Page) => {
+                self.push_section(Section::page_break())
+            }
+
+            AtomizerEvent::Atom(Atom::Image { uri }) => {
                 // TODO: Use title, and ignore alt-text
                 // Or should alt-text always be used?
-                if let Ok(image) = resources.load_image(url.clone().into_owned()) {
+                if let Ok(image) = resources.load_image(uri.clone().into_owned()) {
                     let (w, h) = image.dimensions();
                     let (w, h) = (
                         ::printpdf::Px(w as usize).into_pt(300.0).into(),
                         ::printpdf::Px(h as usize).into_pt(300.0).into(),
                     );
-                    let span = Span::image(w, h, url.into_owned().into());
+                    let span = Span::image(w, h, uri.into_owned().into());
                     self.push_span(span);
                     self.is_alt_text = true;
                 } else {
-                    warn!("Couldn't load image: {:?}", url);
+                    warn!("Couldn't load image: {:?}", uri);
                 }
             }
-            Event::End(Tag::Image(_url, _title)) => {
-                self.is_alt_text = false;
-            }
+            AtomizerEvent::Atom(Atom::Image { .. }) => {}
 
-            Event::Start(Tag::CodeBlock(_src_type)) => {
+            AtomizerEvent::StartBlock(BlockTag::CodeBlock) => {
                 self.is_code = true;
-                self.current_style.insert(Class::Code);
             }
-            Event::End(Tag::CodeBlock(_)) => {
+            AtomizerEvent::EndBlock(BlockTag::CodeBlock) => {
                 let code_block = Section::code_block(self.current_code_block.clone());
                 self.push_section(code_block);
                 self.current_code_block.clear();
 
                 self.push_space();
                 self.is_code = false;
-                self.current_style.remove(&Class::Code);
             }
 
-            Event::Start(Tag::Paragraph) => {}
-            Event::End(Tag::Paragraph) => {
+            AtomizerEvent::Break(Break::Paragraph) => {
                 self.new_line();
                 self.push_space();
             }
 
-            Event::SoftBreak => self.write(" "),
-            Event::HardBreak => self.new_line(),
-
-            _ => {}
+            AtomizerEvent::Break(Break::Line) => self.new_line(),
         };
         None
     }
@@ -191,45 +141,23 @@ impl<'collection> Sectioner<'collection> {
         self.lines.push(section);
     }
 
-    pub fn write_left_aligned(&mut self, text: &str) {
-        let space_width = width_of_text(self.cfg, &self.current_style, " ").into();
-
-        let mut buffer = String::new();
-        let mut buffer_width = Mm(0.0);
-        let mut pos = 0;
-        while pos < text.len() {
-            let idx = text[pos..]
-                .find(char::is_whitespace)
-                .unwrap_or(text.len() - pos - 1)
-                + pos
-                + 1;
-            let word = &text[pos..idx];
-            pos = idx;
-            let word_width = width_of_text(self.cfg, &self.current_style, word).into();
-            if self.x + buffer_width + word_width > self.max_width {
-                self.write(&buffer);
-                self.new_line();
-                buffer.clear();
-                buffer_width = Mm(0.0);
-            }
-            if buffer.len() > 0 {
-                buffer.push(' ');
-                buffer_width += space_width;
-            }
-            buffer.push_str(word);
-            buffer_width += word_width;
+    pub fn write_left_aligned(&mut self, text: &str, style: &Style) {
+        let width = width_of_text(self.cfg, style, text).into();
+        if self.x + width > self.max_width {
+            self.new_line();
         }
+
         let span = Span::text(
-            buffer,
-            self.current_style.clone(),
+            text.to_string(),
+            style.clone(),
         );
         self.push_span(span);
     }
 
-    pub fn write(&mut self, text: &str) {
+    pub fn write(&mut self, text: &str, style: &Style) {
         let span = Span::text(
             text.into(),
-            self.current_style.clone(),
+            style.clone(),
         );
         self.push_span(span);
     }
