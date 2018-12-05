@@ -1,7 +1,7 @@
-use Config;
 use printpdf::Pt;
 use rusttype::{Font, Scale};
-use style::{Style, Class};
+use style::{Class, Style};
+use Config;
 
 pub fn width_of_text(config: &Config, style: &Style, text: &str) -> Pt {
     let font = font_from_style(config, style);
@@ -32,7 +32,7 @@ pub fn font_from_style<'cfg>(config: &'cfg Config, style: &Style) -> &'cfg Font<
 
     if style.contains(&Class::Code) {
         &config.mono_font
-    } else if  strong && emphasis {
+    } else if strong && emphasis {
         &config.bold_italic_font
     } else if strong {
         &config.bold_font
@@ -46,7 +46,7 @@ pub fn font_from_style<'cfg>(config: &'cfg Config, style: &Style) -> &'cfg Font<
 pub fn scale_from_style(config: &Config, style: &Style) -> Scale {
     if style.contains(&Class::Heading(4)) {
         config.h4_font_size
-    } else if  style.contains(&Class::Heading(3)) {
+    } else if style.contains(&Class::Heading(3)) {
         config.h3_font_size
     } else if style.contains(&Class::Heading(2)) {
         config.h2_font_size
@@ -56,4 +56,3 @@ pub fn scale_from_style(config: &Config, style: &Style) -> Scale {
         config.default_font_size
     }
 }
-

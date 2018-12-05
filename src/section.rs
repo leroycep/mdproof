@@ -1,6 +1,6 @@
-use Config;
 use printpdf::Mm;
 use span::Span;
+use Config;
 
 #[derive(Clone, Debug)]
 pub enum Section {

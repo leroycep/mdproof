@@ -55,10 +55,7 @@ impl<'collection> Pages<'collection> {
                     let list_point_x = list_x - self.cfg.list_point_offset;
                     self.current_page.render_spans(
                         self.cfg,
-                        &[Span::text(
-                            "o".into(),
-                            [Class::Code].iter().into(),
-                        )],
+                        &[Span::text("o".into(), [Class::Code].iter().into())],
                         list_point_x,
                         self.current_y,
                     );
@@ -68,10 +65,7 @@ impl<'collection> Pages<'collection> {
                 Section::BlockQuote(ref sections) => {
                     self.current_page.render_spans(
                         self.cfg,
-                        &[Span::text(
-                            "|".into(),
-                            [Class::Code].iter().into(),
-                        )],
+                        &[Span::text("|".into(), [Class::Code].iter().into())],
                         start_x,
                         self.current_y,
                     );

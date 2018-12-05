@@ -1,12 +1,12 @@
 use super::Config;
+use atomizer::{Atom, BlockTag, Break, Event as AtomizerEvent};
 use image::GenericImageView;
 use printpdf::Mm;
 use resources::Resources;
 use section::Section;
-use style::Style;
 use span::Span;
+use style::Style;
 use util::width_of_text;
-use atomizer::{Atom, Event as AtomizerEvent, BlockTag, Break};
 
 pub enum SubsectionType {
     List,
@@ -62,7 +62,9 @@ impl<'collection> Sectioner<'collection> {
             return None;
         }
         match event {
-            AtomizerEvent::Break(Break::HorizontalRule) => self.push_section(Section::ThematicBreak),
+            AtomizerEvent::Break(Break::HorizontalRule) => {
+                self.push_section(Section::ThematicBreak)
+            }
 
             AtomizerEvent::StartBlock(BlockTag::List(_)) => self.new_line(),
             AtomizerEvent::EndBlock(BlockTag::List(_)) => self.push_space(),
@@ -94,9 +96,7 @@ impl<'collection> Sectioner<'collection> {
                 }
             }
 
-            AtomizerEvent::Break(Break::Page) => {
-                self.push_section(Section::page_break())
-            }
+            AtomizerEvent::Break(Break::Page) => self.push_section(Section::page_break()),
 
             AtomizerEvent::Atom(Atom::Image { uri }) => {
                 // TODO: Use title, and ignore alt-text
@@ -153,18 +153,12 @@ impl<'collection> Sectioner<'collection> {
             self.new_line();
         }
 
-        let span = Span::text(
-            text.to_string(),
-            style.clone(),
-        );
+        let span = Span::text(text.to_string(), style.clone());
         self.push_span(span);
     }
 
     pub fn write(&mut self, text: &str, style: &Style) {
-        let span = Span::text(
-            text.into(),
-            style.clone(),
-        );
+        let span = Span::text(text.into(), style.clone());
         self.push_span(span);
     }
 

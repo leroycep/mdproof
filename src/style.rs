@@ -1,4 +1,3 @@
-
 use std::collections::HashSet;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -37,7 +36,7 @@ impl Default for Style {
     }
 }
 
-impl<'a, I: Iterator<Item=&'a Class>> From<I> for Style {
+impl<'a, I: Iterator<Item = &'a Class>> From<I> for Style {
     fn from(classes: I) -> Self {
         let mut style = Style::default();
         for c in classes {
@@ -54,4 +53,3 @@ impl ::std::hash::Hash for Style {
         }
     }
 }
-

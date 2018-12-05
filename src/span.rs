@@ -1,8 +1,8 @@
-use Config;
 use printpdf::Mm;
 use std::path::PathBuf;
-use util::{font_height, width_of_text};
 use style::Style;
+use util::{font_height, width_of_text};
+use Config;
 
 #[derive(Clone, Debug)]
 pub enum Span {
@@ -22,14 +22,8 @@ pub enum Span {
 }
 
 impl Span {
-    pub fn text(
-        text: String,
-        style: Style,
-    ) -> Self {
-        Span::Text {
-            text,
-            style,
-        }
+    pub fn text(text: String, style: Style) -> Self {
+        Span::Text { text, style }
     }
 
     pub fn image(width: Mm, height: Mm, path: PathBuf) -> Self {
@@ -46,11 +40,7 @@ impl Span {
 
     pub fn width(&self, config: &Config) -> Mm {
         match self {
-            Span::Text {
-                text,
-                style,
-                ..
-            } => width_of_text(config, &style, &text).into(),
+            Span::Text { text, style, .. } => width_of_text(config, &style, &text).into(),
             Span::Image { width, .. } => width.clone(),
             Span::Rect { width, .. } => width.clone(),
         }
@@ -58,9 +48,7 @@ impl Span {
 
     pub fn height(&self, config: &Config) -> Mm {
         match self {
-            Span::Text {
-                style, ..
-            } => font_height(config, &style).into(),
+            Span::Text { style, .. } => font_height(config, &style).into(),
             Span::Image { height, .. } => height.clone(),
             Span::Rect { height, .. } => height.clone(),
         }

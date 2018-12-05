@@ -1,6 +1,6 @@
-use Config;
 use printpdf::Mm;
 use span::{PositionedSpan, Span};
+use Config;
 
 #[derive(Clone)]
 pub struct Page {
