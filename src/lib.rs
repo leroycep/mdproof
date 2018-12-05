@@ -108,10 +108,11 @@ pub fn markdown_to_pdf(markdown: &str, cfg: &Config) -> Result<PdfDocumentRefere
         cfg.first_layer_name.clone(),
     );
 
+    {
     let atomizer = atomizer::Atomizer::new(Parser::new(&markdown));
 
     let max_width = cfg.page_size.0 - cfg.margin.0 * 2.0;
-    let mut resources = Resources::new(cfg.resources_directory.clone());
+    let mut resources = Resources::new(&doc, cfg.resources_directory.clone());
     let mut lines = Sectioner::new(max_width, cfg);
 
     for event in atomizer {
@@ -223,6 +224,7 @@ pub fn markdown_to_pdf(markdown: &str, cfg: &Config) -> Result<PdfDocumentRefere
             current_layer.end_text_section();
         }
         is_first_iteration = false;
+    }
     }
 
     Ok(doc)
