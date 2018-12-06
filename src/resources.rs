@@ -5,12 +5,15 @@ use rusttype::Font;
 use std::collections::BTreeMap;
 use std::io::Read;
 use std::path::{Path, PathBuf};
+use {
+    DEFAULT_BOLD_FONT, DEFAULT_BOLD_ITALIC_FONT, DEFAULT_ITALIC_FONT, DEFAULT_MONO_FONT,
+    DEFAULT_REGULAR_FONT,
+};
 
-pub struct Resources<'doc> {
-    doc: &'doc PdfDocumentReference,
+pub struct Resources {
     root_path: PathBuf,
     images: BTreeMap<PathBuf, DynamicImage>,
-    fonts: BTreeMap<PathBuf, FontResource>,
+    fonts: BTreeMap<PathBuf, Font<'static>>,
 }
 
 pub struct FontResource {
@@ -18,14 +21,42 @@ pub struct FontResource {
     rusttype_font: Font<'static>,
 }
 
-impl<'doc> Resources<'doc> {
-    pub fn new(doc: &'doc PdfDocumentReference, root_path: PathBuf) -> Self {
-        Self {
-            doc: doc,
+pub(crate) const REGULAR_FONT: &[u8] = include_bytes!("../assets/Noto_Sans/NotoSans-Regular.ttf");
+pub(crate) const BOLD_FONT: &[u8] = include_bytes!("../assets/Noto_Sans/NotoSans-Bold.ttf");
+pub(crate) const ITALIC_FONT: &[u8] = include_bytes!("../assets/Noto_Sans/NotoSans-Italic.ttf");
+pub(crate) const BOLD_ITALIC_FONT: &[u8] =
+    include_bytes!("../assets/Noto_Sans/NotoSans-BoldItalic.ttf");
+pub(crate) const MONO_FONT: &[u8] = include_bytes!("../assets/Inconsolata/Inconsolata-Regular.ttf");
+
+impl Resources {
+    pub fn new(root_path: PathBuf) -> Self {
+        let mut res = Self {
             root_path: root_path,
             images: BTreeMap::new(),
             fonts: BTreeMap::new(),
-        }
+        };
+        res.fonts.insert(
+            DEFAULT_REGULAR_FONT.into(),
+            Font::from_bytes(REGULAR_FONT).expect("Static font to work"),
+        );
+        res.fonts.insert(
+            DEFAULT_BOLD_FONT.into(),
+            Font::from_bytes(BOLD_FONT).expect("Static font to work"),
+        );
+        res.fonts.insert(
+            DEFAULT_ITALIC_FONT.into(),
+            Font::from_bytes(ITALIC_FONT).expect("Static font to work"),
+        );
+        res.fonts.insert(
+            DEFAULT_BOLD_ITALIC_FONT.into(),
+            Font::from_bytes(BOLD_ITALIC_FONT).expect("Static font to work"),
+        );
+        res.fonts.insert(
+            DEFAULT_MONO_FONT.into(),
+            Font::from_bytes(MONO_FONT).expect("Static font to work"),
+        );
+
+        res
     }
 
     pub fn load_image<P: AsRef<Path>>(&mut self, path: P) -> Result<&DynamicImage, Error> {
@@ -47,7 +78,17 @@ impl<'doc> Resources<'doc> {
         }
     }
 
-    pub fn get_font(&mut self, path: &str) -> Result<&FontResource, Error> {
+    pub fn get_image<P: AsRef<Path>>(&self, path: P) -> Option<&DynamicImage> {
+        let filename = self.root_path.join(path);
+        self.images.get(&filename)
+    }
+
+    pub fn get_font(&self, path: &str) -> Option<&Font> {
+        let filename = self.root_path.join(path);
+        self.fonts.get(&filename)
+    }
+
+    pub fn get_font_mut(&mut self, path: &str) -> Result<&Font, Error> {
         let filename = self.root_path.join(path);
         if self.fonts.contains_key(&filename) {
             let font = self
@@ -60,21 +101,9 @@ impl<'doc> Resources<'doc> {
             let mut font_file = std::fs::File::open(&filename)?;
             font_file.read_to_end(&mut font_data)?;
 
-            let pdf_font_ref = {
-                let data_cursor = std::io::Cursor::new(&font_data);
-                self.doc
-                    .add_external_font(data_cursor)
-                    .map_err(|_e| format_err!("Failed to add font to PDF"))?
-            };
-
             let rusttype_font = Font::from_bytes(font_data)?;
 
-            let resource = FontResource {
-                rusttype_font,
-                pdf_font_ref,
-            };
-
-            self.fonts.insert(filename.clone(), resource);
+            self.fonts.insert(filename.clone(), rusttype_font);
             let font_resource = self
                 .fonts
                 .get(&filename)

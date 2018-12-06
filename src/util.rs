@@ -1,10 +1,11 @@
 use printpdf::Pt;
+use resources::Resources;
 use rusttype::{Font, Scale};
 use style::{Class, Style};
 use Config;
 
-pub fn width_of_text(config: &Config, style: &Style, text: &str) -> Pt {
-    let font = font_from_style(config, style);
+pub fn width_of_text(config: &Config, resources: &Resources, style: &Style, text: &str) -> Pt {
+    let font = font_from_style(config, resources, style);
     let scale = scale_from_style(config, style);
     let units_per_em = font.units_per_em() as f64;
     let glyph_space_width: f64 = font
@@ -18,28 +19,42 @@ pub fn width_of_text(config: &Config, style: &Style, text: &str) -> Pt {
     Pt(glyph_space_width * scale.x as f64 / units_per_em)
 }
 
-pub fn font_height(config: &Config, style: &Style) -> Pt {
-    let font = font_from_style(config, style);
+pub fn font_height(config: &Config, resources: &Resources, style: &Style) -> Pt {
+    let font = font_from_style(config, resources, style);
     let scale = scale_from_style(config, style);
     let v_metrics = font.v_metrics(scale);
     let height = (v_metrics.ascent - v_metrics.descent + v_metrics.line_gap) as f64;
     Pt(height)
 }
 
-pub fn font_from_style<'cfg>(config: &'cfg Config, style: &Style) -> &'cfg Font<'cfg> {
+pub fn font_from_style<'res>(
+    config: &Config,
+    resources: &'res Resources,
+    style: &Style,
+) -> &'res Font<'res> {
     let strong = style.contains(&Class::Strong);
     let emphasis = style.contains(&Class::Emphasis);
 
     if style.contains(&Class::Code) {
-        &config.mono_font
+        resources
+            .get_font(&config.mono_font)
+            .expect("All fonts should be loaded, or program should've quit")
     } else if strong && emphasis {
-        &config.bold_italic_font
+        resources
+            .get_font(&config.bold_italic_font)
+            .expect("All fonts should be loaded, or program should've quit")
     } else if strong {
-        &config.bold_font
+        resources
+            .get_font(&config.bold_font)
+            .expect("All fonts should be loaded, or program should've quit")
     } else if emphasis {
-        &config.italic_font
+        resources
+            .get_font(&config.italic_font)
+            .expect("All fonts should be loaded, or program should've quit")
     } else {
-        &config.default_font
+        resources
+            .get_font(&config.default_font)
+            .expect("All fonts should be loaded, or program should've quit")
     }
 }
 

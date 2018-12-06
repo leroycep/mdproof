@@ -1,4 +1,5 @@
 use printpdf::Mm;
+use resources::Resources;
 use span::{PositionedSpan, Span};
 use Config;
 
@@ -14,13 +15,20 @@ impl Page {
         }
     }
 
-    pub fn render_spans(&mut self, cfg: &Config, spans: &[Span], start_x: Mm, start_y: Mm) {
+    pub fn render_spans(
+        &mut self,
+        cfg: &Config,
+        resources: &Resources,
+        spans: &[Span],
+        start_x: Mm,
+        start_y: Mm,
+    ) {
         let mut x = start_x;
         let y = start_y;
         for span in spans {
             self.positioned_spans
                 .push(PositionedSpan::new(span.clone(), x, y));
-            x += span.width(cfg);
+            x += span.width(cfg, resources);
         }
     }
 

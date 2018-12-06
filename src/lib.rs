@@ -30,11 +30,11 @@ use span::Span;
 use std::path::PathBuf;
 use style::Class;
 
-const REGULAR_FONT: &[u8] = include_bytes!("../assets/Noto_Sans/NotoSans-Regular.ttf");
-const BOLD_FONT: &[u8] = include_bytes!("../assets/Noto_Sans/NotoSans-Bold.ttf");
-const ITALIC_FONT: &[u8] = include_bytes!("../assets/Noto_Sans/NotoSans-Italic.ttf");
-const BOLD_ITALIC_FONT: &[u8] = include_bytes!("../assets/Noto_Sans/NotoSans-BoldItalic.ttf");
-const MONO_FONT: &[u8] = include_bytes!("../assets/Inconsolata/Inconsolata-Regular.ttf");
+const DEFAULT_REGULAR_FONT: &str = "mdproof-default-regular";
+const DEFAULT_BOLD_FONT: &str = "mdproof-default-bold";
+const DEFAULT_ITALIC_FONT: &str = "mdproof-default-italic";
+const DEFAULT_BOLD_ITALIC_FONT: &str = "mdproof-default-bold";
+const DEFAULT_MONO_FONT: &str = "mdproof-default-mono";
 
 #[derive(Debug)]
 pub struct Config {
@@ -46,11 +46,11 @@ pub struct Config {
 
     pub page_size: (Mm, Mm),
     pub margin: (Mm, Mm),
-    pub default_font: Font<'static>,
-    pub bold_font: Font<'static>,
-    pub italic_font: Font<'static>,
-    pub bold_italic_font: Font<'static>,
-    pub mono_font: Font<'static>,
+    pub default_font: String,
+    pub bold_font: String,
+    pub italic_font: String,
+    pub bold_italic_font: String,
+    pub mono_font: String,
 
     pub default_font_size: Scale,
     pub h1_font_size: Scale,
@@ -78,11 +78,11 @@ impl Default for Config {
 
             page_size: (Mm(210.0), Mm(297.0)),
             margin: (Mm(20.0), Mm(20.0)),
-            default_font: Font::from_bytes(REGULAR_FONT).expect("Static font to work"),
-            bold_font: Font::from_bytes(BOLD_FONT).expect("Static font to work"),
-            italic_font: Font::from_bytes(ITALIC_FONT).expect("Static font to work"),
-            bold_italic_font: Font::from_bytes(BOLD_ITALIC_FONT).expect("Static font to work"),
-            mono_font: Font::from_bytes(MONO_FONT).expect("Static font to work"),
+            default_font: DEFAULT_REGULAR_FONT.into(),
+            bold_font: DEFAULT_BOLD_FONT.into(),
+            italic_font: DEFAULT_ITALIC_FONT.into(),
+            bold_italic_font: DEFAULT_BOLD_ITALIC_FONT.into(),
+            mono_font: DEFAULT_MONO_FONT.into(),
 
             default_font_size: Scale::uniform(12.0),
             h1_font_size: Scale::uniform(32.0),
@@ -112,25 +112,34 @@ pub fn markdown_to_pdf(markdown: &str, cfg: &Config) -> Result<PdfDocumentRefere
         let atomizer = atomizer::Atomizer::new(Parser::new(&markdown));
 
         let max_width = cfg.page_size.0 - cfg.margin.0 * 2.0;
-        let mut resources = Resources::new(&doc, cfg.resources_directory.clone());
-        let mut lines = Sectioner::new(max_width, cfg);
+        let mut resources = Resources::new(cfg.resources_directory.clone());
 
-        for event in atomizer {
-            lines.parse_event(&mut resources, event);
-        }
+        let _ = resources.get_font_mut(&cfg.default_font);
+        let _ = resources.get_font_mut(&cfg.bold_font);
+        let _ = resources.get_font_mut(&cfg.italic_font);
+        let _ = resources.get_font_mut(&cfg.bold_italic_font);
+        let _ = resources.get_font_mut(&cfg.mono_font);
 
-        let sections = lines.get_vec();
+        let sections = {
+            let mut lines = Sectioner::new(max_width, cfg, &resources);
 
-        let mut pages = Pages::new(cfg);
+            for event in atomizer {
+                lines.parse_event(&resources, event);
+            }
+
+            lines.get_vec()
+        };
+
+        let mut pages = Pages::new(cfg, &resources);
         pages.render_sections(&sections[..], cfg.margin.0);
 
         let pages = pages.into_vec();
 
-        let default_font_reader = std::io::Cursor::new(REGULAR_FONT);
-        let bold_font_reader = std::io::Cursor::new(BOLD_FONT);
-        let italic_font_reader = std::io::Cursor::new(ITALIC_FONT);
-        let bold_italic_font_reader = std::io::Cursor::new(BOLD_ITALIC_FONT);
-        let mono_font_reader = std::io::Cursor::new(MONO_FONT);
+        let default_font_reader = std::io::Cursor::new(resources::REGULAR_FONT);
+        let bold_font_reader = std::io::Cursor::new(resources::BOLD_FONT);
+        let italic_font_reader = std::io::Cursor::new(resources::ITALIC_FONT);
+        let bold_italic_font_reader = std::io::Cursor::new(resources::BOLD_ITALIC_FONT);
+        let mono_font_reader = std::io::Cursor::new(resources::MONO_FONT);
 
         let regular = doc
             .add_external_font(default_font_reader)
@@ -188,7 +197,9 @@ pub fn markdown_to_pdf(markdown: &str, cfg: &Config) -> Result<PdfDocumentRefere
                         current_layer.write_text(text, font);
                     }
                     Span::Image { path, .. } => {
-                        let image = Image::from_dynamic_image(resources.load_image(path)?);
+                        let image = Image::from_dynamic_image(
+                            resources.get_image(path).expect("image to exist"),
+                        );
                         image.add_to_layer(
                             current_layer.clone(),
                             Some(span.pos.0),
