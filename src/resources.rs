@@ -1,8 +1,7 @@
 use failure::Error;
 use image::{self, DynamicImage};
-use printpdf::{IndirectFontRef, PdfDocumentReference};
 use rusttype::Font;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use {
@@ -16,9 +15,16 @@ pub struct Resources {
     fonts: BTreeMap<PathBuf, Font<'static>>,
 }
 
-pub struct FontResource {
-    pdf_font_ref: IndirectFontRef,
-    rusttype_font: Font<'static>,
+pub trait Loader {
+    fn queue_font(&mut self, path: &str);
+    fn queue_image(&mut self, path: &str);
+    fn load_resources(&self) -> (Resources, Vec<Error>);
+}
+
+pub struct SimpleLoader {
+    root_path: PathBuf,
+    queued_images: HashSet<String>,
+    queued_fonts: HashSet<String>,
 }
 
 pub(crate) const REGULAR_FONT: &[u8] = include_bytes!("../assets/Noto_Sans/NotoSans-Regular.ttf");
@@ -59,23 +65,9 @@ impl Resources {
         res
     }
 
-    pub fn load_image<P: AsRef<Path>>(&mut self, path: P) -> Result<&DynamicImage, Error> {
+    pub fn add_image(&mut self, path: &str, image: DynamicImage) {
         let filename = self.root_path.join(path);
-        if self.images.contains_key(&filename) {
-            let image = self
-                .images
-                .get(&filename)
-                .expect("BTreeMap said it contained the key");
-            Ok(image)
-        } else {
-            let image = image::open(&filename)?;
-            self.images.insert(filename.clone(), image);
-            let image = self
-                .images
-                .get(&filename)
-                .expect("I just inserted the key into the map");
-            Ok(image)
-        }
+        self.images.insert(filename, image);
     }
 
     pub fn get_image<P: AsRef<Path>>(&self, path: P) -> Option<&DynamicImage> {
@@ -83,32 +75,69 @@ impl Resources {
         self.images.get(&filename)
     }
 
+    pub fn add_font(&mut self, path: &str, font: Font<'static>) {
+        let filename = self.root_path.join(path);
+        self.fonts.insert(filename, font);
+    }
+
     pub fn get_font(&self, path: &str) -> Option<&Font> {
         let filename = self.root_path.join(path);
         self.fonts.get(&filename)
     }
+}
 
-    pub fn get_font_mut(&mut self, path: &str) -> Result<&Font, Error> {
-        let filename = self.root_path.join(path);
-        if self.fonts.contains_key(&filename) {
-            let font = self
-                .fonts
-                .get(&filename)
-                .expect("BTreeMap said it contained the key");
-            Ok(font)
-        } else {
-            let mut font_data = Vec::new();
-            let mut font_file = std::fs::File::open(&filename)?;
-            font_file.read_to_end(&mut font_data)?;
-
-            let rusttype_font = Font::from_bytes(font_data)?;
-
-            self.fonts.insert(filename.clone(), rusttype_font);
-            let font_resource = self
-                .fonts
-                .get(&filename)
-                .expect("I just inserted the key into the map");
-            Ok(font_resource)
+impl SimpleLoader {
+    pub fn new(root_path: PathBuf) -> Self {
+        Self {
+            root_path: root_path,
+            queued_images: HashSet::new(),
+            queued_fonts: HashSet::new(),
         }
+    }
+
+    fn load_font(&self, font: &str) -> Result<Font<'static>, Error> {
+        let filename = self.root_path.join(font);
+
+        let mut buffer = Vec::new();
+        let mut font_file = std::fs::File::open(&filename)?;
+        font_file.read_to_end(&mut buffer)?;
+
+        let font = Font::from_bytes(buffer)?;
+        Ok(font)
+    }
+
+    fn load_image(&self, image_path: &str) -> Result<DynamicImage, Error> {
+        let filename = self.root_path.join(image_path);
+
+        let image = image::open(&filename)?;
+        Ok(image)
+    }
+}
+
+impl Loader for SimpleLoader {
+    fn queue_font(&mut self, path: &str) {
+        self.queued_fonts.insert(path.to_string());
+    }
+
+    fn queue_image(&mut self, path: &str) {
+        self.queued_images.insert(path.to_string());
+    }
+
+    fn load_resources(&self) -> (Resources, Vec<Error>) {
+        let mut res = Resources::new(self.root_path.clone());
+        let mut errors = Vec::new();
+        for font_name in self.queued_fonts.iter() {
+            match self.load_font(font_name) {
+                Ok(font) => res.add_font(font_name, font),
+                Err(e) => errors.push(e),
+            }
+        }
+        for image_path in self.queued_images.iter() {
+            match self.load_image(image_path) {
+                Ok(image) => res.add_image(image_path, image),
+                Err(e) => errors.push(e),
+            }
+        }
+        (res, errors)
     }
 }

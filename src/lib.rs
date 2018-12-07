@@ -21,10 +21,10 @@ mod util;
 use cmark::*;
 use failure::Error;
 use printpdf::{Image, Mm, PdfDocument, PdfDocumentReference};
-use rusttype::{Font, Scale};
+use rusttype::Scale;
 
 use pages::Pages;
-use resources::Resources;
+use resources::Loader;
 use sectioner::Sectioner;
 use span::Span;
 use std::path::PathBuf;
@@ -111,19 +111,25 @@ pub fn markdown_to_pdf(markdown: &str, cfg: &Config) -> Result<PdfDocumentRefere
     {
         let atomizer = atomizer::Atomizer::new(Parser::new(&markdown));
 
-        let max_width = cfg.page_size.0 - cfg.margin.0 * 2.0;
-        let mut resources = Resources::new(cfg.resources_directory.clone());
+        let atoms: Vec<atomizer::Event> = atomizer.collect();
+        let mut loader = resources::SimpleLoader::new(cfg.resources_directory.clone());
+        for event in atoms.iter() {
+            match event {
+                atomizer::Event::Atom(atomizer::Atom::Image { uri }) => {
+                    loader.queue_image(uri);
+                }
 
-        let _ = resources.get_font_mut(&cfg.default_font);
-        let _ = resources.get_font_mut(&cfg.bold_font);
-        let _ = resources.get_font_mut(&cfg.italic_font);
-        let _ = resources.get_font_mut(&cfg.bold_italic_font);
-        let _ = resources.get_font_mut(&cfg.mono_font);
+                _ => {}
+            }
+        }
+
+        let (resources, load_errors) = loader.load_resources();
 
         let sections = {
+            let max_width = cfg.page_size.0 - cfg.margin.0 * 2.0;
             let mut lines = Sectioner::new(max_width, cfg, &resources);
 
-            for event in atomizer {
+            for event in atoms {
                 lines.parse_event(&resources, event);
             }
 

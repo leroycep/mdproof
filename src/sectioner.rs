@@ -118,7 +118,6 @@ impl<'collection> Sectioner<'collection> {
                     warn!("Couldn't load image: {:?}", uri);
                 }
             }
-            AtomizerEvent::Atom(Atom::Image { .. }) => {}
 
             AtomizerEvent::StartBlock(BlockTag::CodeBlock) => {
                 self.is_code = true;
