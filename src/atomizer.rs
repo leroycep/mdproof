@@ -1,6 +1,7 @@
 use cmark::{Event as ParseEvent, Parser, Tag};
 use std::borrow::Cow;
 use style::{Class, Style};
+use util::{slice_cow_till_idx, slice_cow_from_idx};
 
 pub struct Atomizer<'src> {
     state: AtomizerState<'src>,
@@ -93,18 +94,18 @@ impl<'src> Atomizer<'src> {
                         text: " ".into(),
                         style: self.current_style.clone(),
                     })),
-                    AtomizerState::Splitting(Cow::Owned(text[1..].into())),
+                    AtomizerState::Splitting(slice_cow_from_idx(&text, 1)),
                 );
             } else {
                 return (
                     Some(Event::Break(Break::Word)),
-                    AtomizerState::Splitting(Cow::Owned(text[1..].into())),
+                    AtomizerState::Splitting(slice_cow_from_idx(&text, 1)),
                 );
             },
             '\n' => {
                 return (
                     Some(Event::Break(Break::Line)),
-                    AtomizerState::Splitting(Cow::Owned(text[1..].into())),
+                    AtomizerState::Splitting(slice_cow_from_idx(&text, 1)),
                 )
             }
             _ => {}
@@ -115,7 +116,7 @@ impl<'src> Atomizer<'src> {
             .map(|c| c.is_whitespace())
             .unwrap_or(false)
         {
-            return (None, AtomizerState::Splitting(Cow::Owned(text[1..].into())));
+            return (None, AtomizerState::Splitting(slice_cow_from_idx(&text, 1)));
         }
         let style = self.current_style.clone();
         for (idx, c) in text.char_indices() {
@@ -124,8 +125,8 @@ impl<'src> Atomizer<'src> {
                 _ => None,
             };
             if let Some(idx) = end {
-                let remainder = Cow::Owned(text[idx..].into());
-                let text = Cow::Owned(text[..idx].into());
+                let remainder = slice_cow_from_idx(&text, idx);
+                let text = slice_cow_till_idx(&text, idx);
                 return (
                     Some(Event::Atom(Atom::Text { text, style })),
                     AtomizerState::Splitting(remainder),

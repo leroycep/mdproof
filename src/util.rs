@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use printpdf::Pt;
 use resources::Resources;
 use rusttype::{Font, Scale};
@@ -69,5 +70,27 @@ pub fn scale_from_style(config: &Config, style: &Style) -> Scale {
         config.h1_font_size
     } else {
         config.default_font_size
+    }
+}
+
+pub fn slice_cow_from_idx<'c>(text: &Cow<'c, str>, idx: usize) -> Cow<'c, str> {
+    match text {
+        Cow::Owned(string) => {
+            Cow::Owned(String::from(&string[idx..]))
+        }
+        Cow::Borrowed(stringref) => {
+            Cow::Borrowed(&stringref[idx..])
+        }
+    }
+}
+
+pub fn slice_cow_till_idx<'c>(text: &Cow<'c, str>, idx: usize) -> Cow<'c, str> {
+    match text {
+        Cow::Owned(string) => {
+            Cow::Owned(String::from(&string[..idx]))
+        }
+        Cow::Borrowed(stringref) => {
+            Cow::Borrowed(&stringref[..idx])
+        }
     }
 }
