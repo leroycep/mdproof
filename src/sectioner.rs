@@ -1,12 +1,12 @@
 use super::Config;
+use atomizer::{Atom, BlockTag, Break, Event as AtomizerEvent};
 use image::GenericImageView;
 use printpdf::Mm;
 use resources::Resources;
 use section::Section;
-use style::Style;
 use span::Span;
+use style::Style;
 use util::width_of_text;
-use atomizer::{Atom, Event as AtomizerEvent, BlockTag, Break};
 
 pub enum SubsectionType {
     List,
@@ -23,10 +23,11 @@ pub struct Sectioner<'collection> {
     pub is_code: bool,
     is_alt_text: bool,
     cfg: &'collection Config,
+    resources: &'collection Resources,
 }
 
 impl<'collection> Sectioner<'collection> {
-    pub fn new(max_width: Mm, cfg: &'collection Config) -> Self {
+    pub fn new(max_width: Mm, cfg: &'collection Config, resources: &'collection Resources) -> Self {
         Self {
             x: Mm(0.0),
             lines: Vec::new(),
@@ -37,12 +38,13 @@ impl<'collection> Sectioner<'collection> {
             is_code: false,
             is_alt_text: false,
             cfg: cfg,
+            resources: resources,
         }
     }
 
     pub fn parse_event(
         &mut self,
-        resources: &mut Resources,
+        resources: &Resources,
         event: AtomizerEvent,
     ) -> Option<SubsectionType> {
         if self.subsection.is_some() {
@@ -62,7 +64,9 @@ impl<'collection> Sectioner<'collection> {
             return None;
         }
         match event {
-            AtomizerEvent::Break(Break::HorizontalRule) => self.push_section(Section::ThematicBreak),
+            AtomizerEvent::Break(Break::HorizontalRule) => {
+                self.push_section(Section::ThematicBreak)
+            }
 
             AtomizerEvent::StartBlock(BlockTag::List(_)) => self.new_line(),
             AtomizerEvent::EndBlock(BlockTag::List(_)) => self.push_space(),
@@ -71,6 +75,7 @@ impl<'collection> Sectioner<'collection> {
                 self.subsection = Some(Box::new(Sectioner::new(
                     self.max_width - self.cfg.list_indentation,
                     &self.cfg,
+                    &self.resources,
                 )))
             }
             AtomizerEvent::EndBlock(BlockTag::ListItem) => return Some(SubsectionType::List),
@@ -80,6 +85,7 @@ impl<'collection> Sectioner<'collection> {
                 self.subsection = Some(Box::new(Sectioner::new(
                     self.max_width - self.cfg.quote_indentation,
                     &self.cfg,
+                    &self.resources,
                 )))
             }
             AtomizerEvent::EndBlock(BlockTag::BlockQuote) => return Some(SubsectionType::Quote),
@@ -94,14 +100,12 @@ impl<'collection> Sectioner<'collection> {
                 }
             }
 
-            AtomizerEvent::Break(Break::Page) => {
-                self.push_section(Section::page_break())
-            }
+            AtomizerEvent::Break(Break::Page) => self.push_section(Section::page_break()),
 
             AtomizerEvent::Atom(Atom::Image { uri }) => {
                 // TODO: Use title, and ignore alt-text
                 // Or should alt-text always be used?
-                if let Ok(image) = resources.load_image(uri.clone().into_owned()) {
+                if let Some(image) = resources.get_image(uri.clone().into_owned()) {
                     let (w, h) = image.dimensions();
                     let (w, h) = (
                         ::printpdf::Px(w as usize).into_pt(300.0).into(),
@@ -114,7 +118,6 @@ impl<'collection> Sectioner<'collection> {
                     warn!("Couldn't load image: {:?}", uri);
                 }
             }
-            AtomizerEvent::Atom(Atom::Image { .. }) => {}
 
             AtomizerEvent::StartBlock(BlockTag::CodeBlock) => {
                 self.is_code = true;
@@ -148,28 +151,22 @@ impl<'collection> Sectioner<'collection> {
     }
 
     pub fn write_left_aligned(&mut self, text: &str, style: &Style) {
-        let width = width_of_text(self.cfg, style, text).into();
+        let width = width_of_text(self.cfg, self.resources, style, text).into();
         if self.x + width > self.max_width {
             self.new_line();
         }
 
-        let span = Span::text(
-            text.to_string(),
-            style.clone(),
-        );
+        let span = Span::text(text.to_string(), style.clone());
         self.push_span(span);
     }
 
     pub fn write(&mut self, text: &str, style: &Style) {
-        let span = Span::text(
-            text.into(),
-            style.clone(),
-        );
+        let span = Span::text(text.into(), style.clone());
         self.push_span(span);
     }
 
     pub fn push_span(&mut self, span: Span) {
-        self.x += span.width(self.cfg);
+        self.x += span.width(self.cfg, self.resources);
         self.current_line.push(span);
     }
 

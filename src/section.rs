@@ -1,6 +1,7 @@
-use Config;
 use printpdf::Mm;
+use resources::Resources;
 use span::Span;
+use Config;
 
 #[derive(Clone, Debug)]
 pub enum Section {
@@ -38,41 +39,53 @@ impl Section {
         Section::PageBreak
     }
 
-    pub fn height(&self, cfg: &Config) -> Mm {
+    pub fn height(&self, cfg: &Config, resources: &Resources) -> Mm {
         let r = match self {
             Section::Plain(spans) => spans
                 .iter()
-                .map(|x| x.height(cfg).0)
+                .map(|x| x.height(cfg, resources).0)
                 .fold(0.0, |x, acc| acc.max(x)),
             Section::VerticalSpace(space_pt) => space_pt.0,
             Section::ThematicBreak => 0.0,
             Section::PageBreak => 0.0,
-            Section::ListItem(sections) => sections.iter().map(|x| x.height(cfg).0).sum(),
-            Section::BlockQuote(sections) => sections.iter().map(|x| x.height(cfg).0).sum(),
+            Section::ListItem(sections) => {
+                sections.iter().map(|x| x.height(cfg, resources).0).sum()
+            }
+            Section::BlockQuote(sections) => {
+                sections.iter().map(|x| x.height(cfg, resources).0).sum()
+            }
             Section::CodeBlock(lines) => lines
                 .iter()
                 .map(|line| {
                     line.iter()
-                        .map(|x| x.height(cfg).0)
+                        .map(|x| x.height(cfg, resources).0)
                         .fold(0.0, |x, acc| acc.max(x))
                 }).sum(),
         };
         Mm(r)
     }
 
-    pub fn min_step(&self, cfg: &Config) -> Mm {
+    pub fn min_step(&self, cfg: &Config, resources: &Resources) -> Mm {
         let r = match self {
-            Section::Plain(_) => self.height(cfg).0,
-            Section::VerticalSpace(_) => self.height(cfg).0,
-            Section::ThematicBreak => self.height(cfg).0,
-            Section::PageBreak => self.height(cfg).0,
-            Section::ListItem(sections) => sections.iter().take(1).map(|x| x.height(cfg).0).sum(),
-            Section::BlockQuote(sections) => sections.iter().take(1).map(|x| x.height(cfg).0).sum(),
+            Section::Plain(_) => self.height(cfg, resources).0,
+            Section::VerticalSpace(_) => self.height(cfg, resources).0,
+            Section::ThematicBreak => self.height(cfg, resources).0,
+            Section::PageBreak => self.height(cfg, resources).0,
+            Section::ListItem(sections) => sections
+                .iter()
+                .take(1)
+                .map(|x| x.height(cfg, resources).0)
+                .sum(),
+            Section::BlockQuote(sections) => sections
+                .iter()
+                .take(1)
+                .map(|x| x.height(cfg, resources).0)
+                .sum(),
             Section::CodeBlock(lines) => lines
                 .iter()
                 .take(1)
                 .flat_map(|x| x.iter())
-                .map(|x| x.height(cfg).0)
+                .map(|x| x.height(cfg, resources).0)
                 .sum(),
         };
         Mm(r)
