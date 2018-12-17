@@ -1,4 +1,3 @@
-use util::{slice_cow_till_idx, slice_cow_from_idx};
 use atomizer::{Atom, BlockTag, Break, Event as AtomizerEvent};
 use resources::Resources;
 use image::GenericImageView;

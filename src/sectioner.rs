@@ -1,7 +1,6 @@
 use super::Config;
 use atomizer::{Atom, BlockTag, Break};
 use sizer::{SizedEvent, SizedAtom};
-use image::GenericImageView;
 use printpdf::Mm;
 use resources::Resources;
 use section::Section;
