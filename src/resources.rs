@@ -3,7 +3,7 @@ use image::{self, DynamicImage};
 use rusttype::Font;
 use std::collections::{BTreeMap, HashSet};
 use std::io::Read;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use {
     DEFAULT_BOLD_FONT, DEFAULT_BOLD_ITALIC_FONT, DEFAULT_ITALIC_FONT, DEFAULT_MONO_FONT,
     DEFAULT_REGULAR_FONT,
@@ -70,7 +70,7 @@ impl Resources {
         self.images.insert(filename, image);
     }
 
-    pub fn get_image<P: AsRef<Path>>(&self, path: P) -> Option<&DynamicImage> {
+    pub fn get_image(&self, path: &str) -> Option<&DynamicImage> {
         let filename = self.root_path.join(path);
         self.images.get(&filename)
     }

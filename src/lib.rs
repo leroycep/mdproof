@@ -9,6 +9,7 @@ extern crate scraper;
 extern crate log;
 
 mod atomizer;
+mod sizer;
 mod page;
 mod pages;
 mod resources;
@@ -125,11 +126,13 @@ pub fn markdown_to_pdf(markdown: &str, cfg: &Config) -> Result<PdfDocumentRefere
 
         let (resources, load_errors) = loader.load_resources();
 
+        let sized_atoms: Vec<_> = sizer::Sizer::new(atoms.into_iter(), &cfg, &resources).collect();
+
         let sections = {
             let max_width = cfg.page_size.0 - cfg.margin.0 * 2.0;
             let mut lines = Sectioner::new(max_width, cfg, &resources);
 
-            for event in atoms {
+            for event in sized_atoms {
                 lines.parse_event(&resources, event);
             }
 
@@ -204,7 +207,7 @@ pub fn markdown_to_pdf(markdown: &str, cfg: &Config) -> Result<PdfDocumentRefere
                     }
                     Span::Image { path, .. } => {
                         let image = Image::from_dynamic_image(
-                            resources.get_image(path).expect("image to exist"),
+                            resources.get_image(&path.to_string_lossy()).expect("image to exist"),
                         );
                         image.add_to_layer(
                             current_layer.clone(),
