@@ -9,6 +9,7 @@ extern crate scraper;
 extern crate log;
 
 mod atomizer;
+mod sizer;
 mod page;
 mod pages;
 mod resources;
@@ -204,7 +205,7 @@ pub fn markdown_to_pdf(markdown: &str, cfg: &Config) -> Result<PdfDocumentRefere
                     }
                     Span::Image { path, .. } => {
                         let image = Image::from_dynamic_image(
-                            resources.get_image(path).expect("image to exist"),
+                            resources.get_image(&path.to_string_lossy()).expect("image to exist"),
                         );
                         image.add_to_layer(
                             current_layer.clone(),

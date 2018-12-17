@@ -105,7 +105,7 @@ impl<'collection> Sectioner<'collection> {
             AtomizerEvent::Atom(Atom::Image { uri }) => {
                 // TODO: Use title, and ignore alt-text
                 // Or should alt-text always be used?
-                if let Some(image) = resources.get_image(uri.clone().into_owned()) {
+                if let Some(image) = resources.get_image(&uri) {
                     let (w, h) = image.dimensions();
                     let (w, h) = (
                         ::printpdf::Px(w as usize).into_pt(300.0).into(),
