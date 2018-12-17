@@ -1,5 +1,6 @@
 use super::Config;
-use atomizer::{Atom, BlockTag, Break, Event as AtomizerEvent};
+use atomizer::{Atom, BlockTag, Break};
+use sizer::{SizedEvent, SizedAtom};
 use image::GenericImageView;
 use printpdf::Mm;
 use resources::Resources;
@@ -45,7 +46,7 @@ impl<'collection> Sectioner<'collection> {
     pub fn parse_event(
         &mut self,
         resources: &Resources,
-        event: AtomizerEvent,
+        event: SizedEvent,
     ) -> Option<SubsectionType> {
         if self.subsection.is_some() {
             let mut subsection = self
@@ -64,23 +65,23 @@ impl<'collection> Sectioner<'collection> {
             return None;
         }
         match event {
-            AtomizerEvent::Break(Break::HorizontalRule) => {
+            SizedEvent::Break(Break::HorizontalRule) => {
                 self.push_section(Section::ThematicBreak)
             }
 
-            AtomizerEvent::StartBlock(BlockTag::List(_)) => self.new_line(),
-            AtomizerEvent::EndBlock(BlockTag::List(_)) => self.push_space(),
+            SizedEvent::StartBlock(BlockTag::List(_)) => self.new_line(),
+            SizedEvent::EndBlock(BlockTag::List(_)) => self.push_space(),
 
-            AtomizerEvent::StartBlock(BlockTag::ListItem) => {
+            SizedEvent::StartBlock(BlockTag::ListItem) => {
                 self.subsection = Some(Box::new(Sectioner::new(
                     self.max_width - self.cfg.list_indentation,
                     &self.cfg,
                     &self.resources,
                 )))
             }
-            AtomizerEvent::EndBlock(BlockTag::ListItem) => return Some(SubsectionType::List),
+            SizedEvent::EndBlock(BlockTag::ListItem) => return Some(SubsectionType::List),
 
-            AtomizerEvent::StartBlock(BlockTag::BlockQuote) => {
+            SizedEvent::StartBlock(BlockTag::BlockQuote) => {
                 self.new_line();
                 self.subsection = Some(Box::new(Sectioner::new(
                     self.max_width - self.cfg.quote_indentation,
@@ -88,41 +89,34 @@ impl<'collection> Sectioner<'collection> {
                     &self.resources,
                 )))
             }
-            AtomizerEvent::EndBlock(BlockTag::BlockQuote) => return Some(SubsectionType::Quote),
+            SizedEvent::EndBlock(BlockTag::BlockQuote) => return Some(SubsectionType::Quote),
 
-            AtomizerEvent::Atom(Atom::Text { text, style }) => {
-                self.write_left_aligned(&text, &style);
-            }
-
-            AtomizerEvent::Break(Break::Word) => {
+            SizedEvent::Break(Break::Word) => {
                 if self.x > Mm(0.0) {
                     self.write(" ", &Style::default());
                 }
             }
 
-            AtomizerEvent::Break(Break::Page) => self.push_section(Section::page_break()),
+            SizedEvent::Break(Break::Page) => self.push_section(Section::page_break()),
 
-            AtomizerEvent::Atom(Atom::Image { uri }) => {
-                // TODO: Use title, and ignore alt-text
-                // Or should alt-text always be used?
-                if let Some(image) = resources.get_image(&uri) {
-                    let (w, h) = image.dimensions();
-                    let (w, h) = (
-                        ::printpdf::Px(w as usize).into_pt(300.0).into(),
-                        ::printpdf::Px(h as usize).into_pt(300.0).into(),
-                    );
-                    let span = Span::image(w, h, uri.into_owned().into());
-                    self.push_span(span);
-                    self.is_alt_text = true;
-                } else {
-                    warn!("Couldn't load image: {:?}", uri);
-                }
+            SizedEvent::SizedAtom(SizedAtom { atom, width, height }) => {
+                match atom {
+                    Atom::Text { text, style } => {
+                        self.write_left_aligned(&text, &style);
+                    }
+
+                    Atom::Image { uri } => {
+                        let span = Span::image(width, height, uri.into_owned().into());
+                        self.push_span(span);
+                        self.is_alt_text = true;
+                    }
+                };
             }
 
-            AtomizerEvent::StartBlock(BlockTag::CodeBlock) => {
+            SizedEvent::StartBlock(BlockTag::CodeBlock) => {
                 self.is_code = true;
             }
-            AtomizerEvent::EndBlock(BlockTag::CodeBlock) => {
+            SizedEvent::EndBlock(BlockTag::CodeBlock) => {
                 let code_block = Section::code_block(self.current_code_block.clone());
                 self.push_section(code_block);
                 self.current_code_block.clear();
@@ -131,12 +125,12 @@ impl<'collection> Sectioner<'collection> {
                 self.is_code = false;
             }
 
-            AtomizerEvent::Break(Break::Paragraph) => {
+            SizedEvent::Break(Break::Paragraph) => {
                 self.new_line();
                 self.push_space();
             }
 
-            AtomizerEvent::Break(Break::Line) => self.new_line(),
+            SizedEvent::Break(Break::Line) => self.new_line(),
         };
         None
     }

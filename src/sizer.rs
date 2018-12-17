@@ -26,9 +26,9 @@ pub enum SizedEvent<'src> {
 
 #[derive(Debug)]
 pub struct SizedAtom<'src> {
-    atom: Atom<'src>,
-    width: Mm,
-    height: Mm,
+    pub atom: Atom<'src>,
+    pub width: Mm,
+    pub height: Mm,
 }
 
 impl<'src, 'res, I> Iterator for Sizer<'src, 'res, I> where I: Iterator<Item = AtomizerEvent<'src>> {
