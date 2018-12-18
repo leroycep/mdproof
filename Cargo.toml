@@ -2,6 +2,7 @@
 name = "mdproof"
 version = "0.1.0"
 authors = ["LeRoyce Pearson <leroycepearson@geemili.xyz>"]
+edition = "2018"
 
 [[bin]]
 name = "mdproof"

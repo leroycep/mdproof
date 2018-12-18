@@ -1,8 +1,8 @@
 use printpdf::Mm;
-use resources::Resources;
+use crate::resources::Resources;
 use std::path::PathBuf;
-use style::Style;
-use util::{font_height, width_of_text};
+use crate::style::Style;
+use crate::util::{font_height, width_of_text};
 
 #[derive(Clone, Debug)]
 pub enum Span {

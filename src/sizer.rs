@@ -1,8 +1,8 @@
-use atomizer::{Atom, BlockTag, Break, Event as AtomizerEvent};
+use crate::atomizer::{Atom, BlockTag, Break, Event as AtomizerEvent};
 use image::GenericImageView;
 use printpdf::Mm;
-use resources::Resources;
-use util::{font_height, width_of_text};
+use crate::resources::Resources;
+use crate::util::{font_height, width_of_text};
 
 const IMAGE_DPI: f64 = 300.0;
 const WIDTH_IMAGE_NOT_FOUND: Mm = Mm(50.0);

@@ -1,7 +1,7 @@
-use cmark::{Event as ParseEvent, Parser, Tag};
+use crate::cmark::{Event as ParseEvent, Parser, Tag};
 use std::borrow::Cow;
-use style::{Class, Style};
-use util::{slice_cow_from_idx, slice_cow_till_idx};
+use crate::style::{Class, Style};
+use crate::util::{slice_cow_from_idx, slice_cow_till_idx};
 
 pub struct Atomizer<'src> {
     state: AtomizerState<'src>,
