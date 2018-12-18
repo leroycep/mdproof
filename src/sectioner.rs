@@ -30,7 +30,7 @@ pub struct Sectioner<'res> {
 impl<'res> Sectioner<'res> {
     pub fn new(min_x: Mm, max_x: Mm, resources: &'res Resources) -> Self {
         Self {
-            x: Mm(0.0),
+            x: min_x,
             lines: Vec::new(),
             current_line: Vec::new(),
             current_code_block: Vec::new(),
