@@ -9,12 +9,12 @@ extern crate scraper;
 extern crate log;
 
 mod atomizer;
-mod sizer;
 mod page;
 mod pages;
 mod resources;
 mod section;
 mod sectioner;
+mod sizer;
 mod span;
 mod style;
 mod util;
@@ -37,7 +37,7 @@ const DEFAULT_ITALIC_FONT: &str = "mdproof-default-italic";
 const DEFAULT_BOLD_ITALIC_FONT: &str = "mdproof-default-bold";
 const DEFAULT_MONO_FONT: &str = "mdproof-default-mono";
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Config {
     /// The path from which images will be loaded
     pub resources_directory: PathBuf,
@@ -113,7 +113,7 @@ pub fn markdown_to_pdf(markdown: &str, cfg: &Config) -> Result<PdfDocumentRefere
         let atomizer = atomizer::Atomizer::new(Parser::new(&markdown));
 
         let atoms: Vec<atomizer::Event> = atomizer.collect();
-        let mut loader = resources::SimpleLoader::new(cfg.resources_directory.clone());
+        let mut loader = resources::SimpleLoader::new(cfg.clone());
         for event in atoms.iter() {
             match event {
                 atomizer::Event::Atom(atomizer::Atom::Image { uri }) => {
@@ -126,11 +126,11 @@ pub fn markdown_to_pdf(markdown: &str, cfg: &Config) -> Result<PdfDocumentRefere
 
         let (resources, load_errors) = loader.load_resources();
 
-        let sized_atoms: Vec<_> = sizer::Sizer::new(atoms.into_iter(), &cfg, &resources).collect();
+        let sized_atoms: Vec<_> = sizer::Sizer::new(atoms.into_iter(), &resources).collect();
 
         let sections = {
             let max_width = cfg.page_size.0 - cfg.margin.0 * 2.0;
-            let mut lines = Sectioner::new(max_width, cfg, &resources);
+            let mut lines = Sectioner::new(max_width, &resources);
 
             for event in sized_atoms {
                 lines.parse_event(&resources, event);
@@ -207,7 +207,9 @@ pub fn markdown_to_pdf(markdown: &str, cfg: &Config) -> Result<PdfDocumentRefere
                     }
                     Span::Image { path, .. } => {
                         let image = Image::from_dynamic_image(
-                            resources.get_image(&path.to_string_lossy()).expect("image to exist"),
+                            resources
+                                .get_image(&path.to_string_lossy())
+                                .expect("image to exist"),
                         );
                         image.add_to_layer(
                             current_layer.clone(),

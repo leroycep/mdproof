@@ -1,18 +1,19 @@
 use atomizer::{Atom, BlockTag, Break, Event as AtomizerEvent};
-use resources::Resources;
 use image::GenericImageView;
-use Config;
-use util::{width_of_text, font_height};
 use printpdf::Mm;
+use resources::Resources;
+use util::{font_height, width_of_text};
 
 const IMAGE_DPI: f64 = 300.0;
 const WIDTH_IMAGE_NOT_FOUND: Mm = Mm(50.0);
 const HEIGHT_IMAGE_NOT_FOUND: Mm = Mm(50.0);
 
-pub struct Sizer<'src, 'res, I> where I: Iterator<Item = AtomizerEvent<'src>> {
+pub struct Sizer<'src, 'res, I>
+where
+    I: Iterator<Item = AtomizerEvent<'src>>,
+{
     events: I,
     resources: &'res Resources,
-    cfg: &'res Config,
 }
 
 #[derive(Debug)]
@@ -30,7 +31,10 @@ pub struct SizedAtom<'src> {
     pub height: Mm,
 }
 
-impl<'src, 'res, I> Iterator for Sizer<'src, 'res, I> where I: Iterator<Item = AtomizerEvent<'src>> {
+impl<'src, 'res, I> Iterator for Sizer<'src, 'res, I>
+where
+    I: Iterator<Item = AtomizerEvent<'src>>,
+{
     type Item = SizedEvent<'src>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -44,8 +48,8 @@ impl<'src, 'res, I> Iterator for Sizer<'src, 'res, I> where I: Iterator<Item = A
             AtomizerEvent::Break(break_type) => Some(SizedEvent::Break(break_type)),
 
             AtomizerEvent::Atom(Atom::Text { text, style }) => {
-                let width = width_of_text(self.cfg, self.resources, &style, &text).into();
-                let height = font_height(self.cfg, self.resources, &style).into();
+                let width = width_of_text(self.resources, &style, &text).into();
+                let height = font_height(self.resources, &style).into();
 
                 let sized_atom = SizedAtom {
                     atom: Atom::Text { text, style },
@@ -80,17 +84,15 @@ impl<'src, 'res, I> Iterator for Sizer<'src, 'res, I> where I: Iterator<Item = A
                     Some(SizedEvent::SizedAtom(sized_atom))
                 }
             }
-
         }
     }
 }
 
-impl<'src, 'res, I> Sizer<'src, 'res, I> where I: Iterator<Item = AtomizerEvent<'src>> {
-    pub fn new(events: I, cfg: &'res Config, resources: &'res Resources) -> Self {
-        Self {
-            events,
-            cfg,
-            resources,
-        }
+impl<'src, 'res, I> Sizer<'src, 'res, I>
+where
+    I: Iterator<Item = AtomizerEvent<'src>>,
+{
+    pub fn new(events: I, resources: &'res Resources) -> Self {
+        Self { events, resources }
     }
 }
