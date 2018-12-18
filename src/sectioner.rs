@@ -18,7 +18,8 @@ pub struct Sectioner<'res> {
     lines: Vec<Section>,
     current_line: Vec<Span>,
     current_code_block: Vec<Vec<Span>>,
-    max_width: Mm,
+    min_x: Mm,
+    max_x: Mm,
     subsection: Option<Box<Sectioner<'res>>>,
     pub is_code: bool,
     is_alt_text: bool,
@@ -27,13 +28,14 @@ pub struct Sectioner<'res> {
 }
 
 impl<'res> Sectioner<'res> {
-    pub fn new(max_width: Mm, resources: &'res Resources) -> Self {
+    pub fn new(min_x: Mm, max_x: Mm, resources: &'res Resources) -> Self {
         Self {
             x: Mm(0.0),
             lines: Vec::new(),
             current_line: Vec::new(),
             current_code_block: Vec::new(),
-            max_width: max_width,
+            min_x: min_x,
+            max_x: max_x,
             subsection: None,
             is_code: false,
             is_alt_text: false,
@@ -71,7 +73,8 @@ impl<'res> Sectioner<'res> {
 
             SizedEvent::StartBlock(BlockTag::ListItem) => {
                 self.subsection = Some(Box::new(Sectioner::new(
-                    self.max_width - self.cfg.list_indentation,
+                    self.min_x + self.cfg.list_indentation,
+                    self.max_x,
                     &self.resources,
                 )))
             }
@@ -80,14 +83,15 @@ impl<'res> Sectioner<'res> {
             SizedEvent::StartBlock(BlockTag::BlockQuote) => {
                 self.new_line();
                 self.subsection = Some(Box::new(Sectioner::new(
-                    self.max_width - self.cfg.quote_indentation,
+                    self.min_x + self.cfg.quote_indentation,
+                    self.max_x,
                     &self.resources,
                 )))
             }
             SizedEvent::EndBlock(BlockTag::BlockQuote) => return Some(SubsectionType::Quote),
 
             SizedEvent::Break(Break::Word) => {
-                if self.x > Mm(0.0) {
+                if self.x > self.min_x {
                     self.write(" ", &Style::default());
                 }
             }
@@ -145,7 +149,7 @@ impl<'res> Sectioner<'res> {
 
     pub fn write_left_aligned(&mut self, text: &str, style: &Style) {
         let width = width_of_text(self.resources, style, text).into();
-        if self.x + width > self.max_width {
+        if self.x + width > self.max_x {
             self.new_line();
         }
 
@@ -173,7 +177,7 @@ impl<'res> Sectioner<'res> {
             self.lines.push(Section::plain(self.current_line.clone()));
         }
         self.current_line.clear();
-        self.x = Mm(0.0);
+        self.x = self.min_x;
     }
 
     pub fn get_vec(mut self) -> Vec<Section> {

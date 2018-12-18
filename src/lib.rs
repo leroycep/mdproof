@@ -129,8 +129,8 @@ pub fn markdown_to_pdf(markdown: &str, cfg: &Config) -> Result<PdfDocumentRefere
         let sized_atoms: Vec<_> = sizer::Sizer::new(atoms.into_iter(), &resources).collect();
 
         let sections = {
-            let max_width = cfg.page_size.0 - cfg.margin.0 * 2.0;
-            let mut lines = Sectioner::new(max_width, &resources);
+            let mut lines =
+                Sectioner::new(cfg.margin.0, cfg.page_size.0 - cfg.margin.0, &resources);
 
             for event in sized_atoms {
                 lines.parse_event(&resources, event);
