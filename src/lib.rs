@@ -109,10 +109,11 @@ pub fn markdown_to_pdf(markdown: &str, cfg: &Config) -> Result<PdfDocumentRefere
     );
 
     {
+        let mut resources = resources::Resources::new(cfg.clone());
         let atomizer = atomizer::Atomizer::new(Parser::new(&markdown));
 
         let atoms: Vec<atomizer::Event> = atomizer.collect();
-        let mut loader = resources::SimpleLoader::new(cfg.clone());
+        let mut loader = resources::SimpleLoader::new(PathBuf::from(&cfg.resources_directory));
         for event in atoms.iter() {
             match event {
                 atomizer::Event::Atom(atomizer::Atom::Image { uri }) => {
@@ -123,7 +124,7 @@ pub fn markdown_to_pdf(markdown: &str, cfg: &Config) -> Result<PdfDocumentRefere
             }
         }
 
-        let (resources, _load_errors) = loader.load_resources();
+        let _load_errors = loader.load_resources(&mut resources);
 
         let sized_atoms: Vec<_> = sizer::Sizer::new(atoms.into_iter(), &resources).collect();
 
