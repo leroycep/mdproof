@@ -6,16 +6,16 @@ use section::Section;
 use span::Span;
 use style::Class;
 
-pub struct Pages<'collection> {
+pub struct Pages<'res> {
     pages: Vec<Page>,
     current_page: Page,
     current_y: Mm,
-    cfg: &'collection Config,
-    resources: &'collection Resources,
+    cfg: &'res Config,
+    resources: &'res Resources,
 }
 
-impl<'collection> Pages<'collection> {
-    pub fn new(cfg: &'collection Config, resources: &'collection Resources) -> Self {
+impl<'res> Pages<'res> {
+    pub fn new(cfg: &'res Config, resources: &'res Resources) -> Self {
         Self {
             cfg: cfg,
             resources: resources,
@@ -35,37 +35,28 @@ impl<'collection> Pages<'collection> {
         let min_y = self.cfg.margin.1;
         for section in sections {
             trace!("rendering section: {:?}", section);
-            let height = section.min_step(self.cfg, self.resources);
+            let height = section.min_step(self.resources);
             let delta_y = height * -self.cfg.line_spacing;
             if self.current_y + delta_y < min_y {
                 self.new_page();
             }
             self.current_y += delta_y;
             match section {
-                Section::Plain(spans) => self.current_page.render_spans(
-                    self.cfg,
-                    self.resources,
-                    &spans,
-                    start_x,
-                    self.current_y,
-                ),
+                Section::Plain(spans) => {
+                    self.current_page
+                        .render_spans(self.resources, &spans, start_x, self.current_y)
+                }
                 Section::VerticalSpace(_) => {}
                 Section::ThematicBreak => {
                     let r = Span::rect(self.cfg.page_size.0 - self.cfg.margin.0 - start_x, Mm(1.0));
-                    self.current_page.render_spans(
-                        self.cfg,
-                        self.resources,
-                        &[r],
-                        start_x,
-                        self.current_y,
-                    );
+                    self.current_page
+                        .render_spans(self.resources, &[r], start_x, self.current_y);
                 }
                 Section::PageBreak => self.new_page(),
                 Section::ListItem(ref sections) => {
                     let list_x = start_x + self.cfg.list_indentation;
                     let list_point_x = list_x - self.cfg.list_point_offset;
                     self.current_page.render_spans(
-                        self.cfg,
                         self.resources,
                         &[Span::text("o".into(), [Class::Code].iter().into())],
                         list_point_x,
@@ -76,7 +67,6 @@ impl<'collection> Pages<'collection> {
                 }
                 Section::BlockQuote(ref sections) => {
                     self.current_page.render_spans(
-                        self.cfg,
                         self.resources,
                         &[Span::text("|".into(), [Class::Code].iter().into())],
                         start_x,

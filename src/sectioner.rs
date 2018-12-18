@@ -1,33 +1,33 @@
-use super::Config;
 use atomizer::{Atom, BlockTag, Break};
-use sizer::{SizedEvent, SizedAtom};
 use printpdf::Mm;
 use resources::Resources;
 use section::Section;
+use sizer::{SizedAtom, SizedEvent};
 use span::Span;
 use style::Style;
 use util::width_of_text;
+use Config;
 
 pub enum SubsectionType {
     List,
     Quote,
 }
 
-pub struct Sectioner<'collection> {
+pub struct Sectioner<'res> {
     pub x: Mm,
     lines: Vec<Section>,
     current_line: Vec<Span>,
     current_code_block: Vec<Vec<Span>>,
     max_width: Mm,
-    subsection: Option<Box<Sectioner<'collection>>>,
+    subsection: Option<Box<Sectioner<'res>>>,
     pub is_code: bool,
     is_alt_text: bool,
-    cfg: &'collection Config,
-    resources: &'collection Resources,
+    resources: &'res Resources,
+    cfg: &'res Config,
 }
 
-impl<'collection> Sectioner<'collection> {
-    pub fn new(max_width: Mm, cfg: &'collection Config, resources: &'collection Resources) -> Self {
+impl<'res> Sectioner<'res> {
+    pub fn new(max_width: Mm, resources: &'res Resources) -> Self {
         Self {
             x: Mm(0.0),
             lines: Vec::new(),
@@ -37,8 +37,8 @@ impl<'collection> Sectioner<'collection> {
             subsection: None,
             is_code: false,
             is_alt_text: false,
-            cfg: cfg,
             resources: resources,
+            cfg: resources.get_config(),
         }
     }
 
@@ -64,9 +64,7 @@ impl<'collection> Sectioner<'collection> {
             return None;
         }
         match event {
-            SizedEvent::Break(Break::HorizontalRule) => {
-                self.push_section(Section::ThematicBreak)
-            }
+            SizedEvent::Break(Break::HorizontalRule) => self.push_section(Section::ThematicBreak),
 
             SizedEvent::StartBlock(BlockTag::List(_)) => self.new_line(),
             SizedEvent::EndBlock(BlockTag::List(_)) => self.push_space(),
@@ -74,7 +72,6 @@ impl<'collection> Sectioner<'collection> {
             SizedEvent::StartBlock(BlockTag::ListItem) => {
                 self.subsection = Some(Box::new(Sectioner::new(
                     self.max_width - self.cfg.list_indentation,
-                    &self.cfg,
                     &self.resources,
                 )))
             }
@@ -84,7 +81,6 @@ impl<'collection> Sectioner<'collection> {
                 self.new_line();
                 self.subsection = Some(Box::new(Sectioner::new(
                     self.max_width - self.cfg.quote_indentation,
-                    &self.cfg,
                     &self.resources,
                 )))
             }
@@ -98,7 +94,11 @@ impl<'collection> Sectioner<'collection> {
 
             SizedEvent::Break(Break::Page) => self.push_section(Section::page_break()),
 
-            SizedEvent::SizedAtom(SizedAtom { atom, width, height }) => {
+            SizedEvent::SizedAtom(SizedAtom {
+                atom,
+                width,
+                height,
+            }) => {
                 match atom {
                     Atom::Text { text, style } => {
                         self.write_left_aligned(&text, &style);
@@ -144,7 +144,7 @@ impl<'collection> Sectioner<'collection> {
     }
 
     pub fn write_left_aligned(&mut self, text: &str, style: &Style) {
-        let width = width_of_text(self.cfg, self.resources, style, text).into();
+        let width = width_of_text(self.resources, style, text).into();
         if self.x + width > self.max_width {
             self.new_line();
         }
@@ -159,7 +159,7 @@ impl<'collection> Sectioner<'collection> {
     }
 
     pub fn push_span(&mut self, span: Span) {
-        self.x += span.width(self.cfg, self.resources);
+        self.x += span.width(self.resources);
         self.current_line.push(span);
     }
 

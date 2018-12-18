@@ -4,6 +4,7 @@ use rusttype::Font;
 use std::collections::{BTreeMap, HashSet};
 use std::io::Read;
 use std::path::PathBuf;
+use Config;
 use {
     DEFAULT_BOLD_FONT, DEFAULT_BOLD_ITALIC_FONT, DEFAULT_ITALIC_FONT, DEFAULT_MONO_FONT,
     DEFAULT_REGULAR_FONT,
@@ -13,6 +14,7 @@ pub struct Resources {
     root_path: PathBuf,
     images: BTreeMap<PathBuf, DynamicImage>,
     fonts: BTreeMap<PathBuf, Font<'static>>,
+    config: Config,
 }
 
 pub trait Loader {
@@ -22,7 +24,7 @@ pub trait Loader {
 }
 
 pub struct SimpleLoader {
-    root_path: PathBuf,
+    cfg: Config,
     queued_images: HashSet<String>,
     queued_fonts: HashSet<String>,
 }
@@ -35,11 +37,12 @@ pub(crate) const BOLD_ITALIC_FONT: &[u8] =
 pub(crate) const MONO_FONT: &[u8] = include_bytes!("../assets/Inconsolata/Inconsolata-Regular.ttf");
 
 impl Resources {
-    pub fn new(root_path: PathBuf) -> Self {
+    pub fn new(config: Config) -> Self {
         let mut res = Self {
-            root_path: root_path,
+            root_path: config.resources_directory.clone(),
             images: BTreeMap::new(),
             fonts: BTreeMap::new(),
+            config: config,
         };
         res.fonts.insert(
             DEFAULT_REGULAR_FONT.into(),
@@ -84,19 +87,27 @@ impl Resources {
         let filename = self.root_path.join(path);
         self.fonts.get(&filename)
     }
+
+    pub fn set_config(&mut self, config: Config) {
+        self.config = config;
+    }
+
+    pub fn get_config(&self) -> &Config {
+        &self.config
+    }
 }
 
 impl SimpleLoader {
-    pub fn new(root_path: PathBuf) -> Self {
+    pub fn new(cfg: Config) -> Self {
         Self {
-            root_path: root_path,
+            cfg: cfg,
             queued_images: HashSet::new(),
             queued_fonts: HashSet::new(),
         }
     }
 
     fn load_font(&self, font: &str) -> Result<Font<'static>, Error> {
-        let filename = self.root_path.join(font);
+        let filename = self.cfg.resources_directory.join(font);
 
         let mut buffer = Vec::new();
         let mut font_file = std::fs::File::open(&filename)?;
@@ -107,7 +118,7 @@ impl SimpleLoader {
     }
 
     fn load_image(&self, image_path: &str) -> Result<DynamicImage, Error> {
-        let filename = self.root_path.join(image_path);
+        let filename = self.cfg.resources_directory.join(image_path);
 
         let image = image::open(&filename)?;
         Ok(image)
@@ -124,7 +135,7 @@ impl Loader for SimpleLoader {
     }
 
     fn load_resources(&self) -> (Resources, Vec<Error>) {
-        let mut res = Resources::new(self.root_path.clone());
+        let mut res = Resources::new(self.cfg.clone());
         let mut errors = Vec::new();
         for font_name in self.queued_fonts.iter() {
             match self.load_font(font_name) {

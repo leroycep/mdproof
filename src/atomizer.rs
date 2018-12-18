@@ -1,7 +1,7 @@
 use cmark::{Event as ParseEvent, Parser, Tag};
 use std::borrow::Cow;
 use style::{Class, Style};
-use util::{slice_cow_till_idx, slice_cow_from_idx};
+use util::{slice_cow_from_idx, slice_cow_till_idx};
 
 pub struct Atomizer<'src> {
     state: AtomizerState<'src>,
@@ -88,20 +88,22 @@ impl<'src> Atomizer<'src> {
             return (None, AtomizerState::Parsing);
         }
         match text.chars().next().expect("string len must be > 0") {
-            ' ' => if self.is_code {
-                return (
-                    Some(Event::Atom(Atom::Text {
-                        text: " ".into(),
-                        style: self.current_style.clone(),
-                    })),
-                    AtomizerState::Splitting(slice_cow_from_idx(&text, 1)),
-                );
-            } else {
-                return (
-                    Some(Event::Break(Break::Word)),
-                    AtomizerState::Splitting(slice_cow_from_idx(&text, 1)),
-                );
-            },
+            ' ' => {
+                if self.is_code {
+                    return (
+                        Some(Event::Atom(Atom::Text {
+                            text: " ".into(),
+                            style: self.current_style.clone(),
+                        })),
+                        AtomizerState::Splitting(slice_cow_from_idx(&text, 1)),
+                    );
+                } else {
+                    return (
+                        Some(Event::Break(Break::Word)),
+                        AtomizerState::Splitting(slice_cow_from_idx(&text, 1)),
+                    );
+                }
+            }
             '\n' => {
                 return (
                     Some(Event::Break(Break::Line)),

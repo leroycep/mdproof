@@ -3,7 +3,6 @@ use resources::Resources;
 use std::path::PathBuf;
 use style::Style;
 use util::{font_height, width_of_text};
-use Config;
 
 #[derive(Clone, Debug)]
 pub enum Span {
@@ -39,19 +38,17 @@ impl Span {
         Span::Rect { width, height }
     }
 
-    pub fn width(&self, config: &Config, resources: &Resources) -> Mm {
+    pub fn width(&self, resources: &Resources) -> Mm {
         match self {
-            Span::Text { text, style, .. } => {
-                width_of_text(config, resources, &style, &text).into()
-            }
+            Span::Text { text, style, .. } => width_of_text(resources, &style, &text).into(),
             Span::Image { width, .. } => width.clone(),
             Span::Rect { width, .. } => width.clone(),
         }
     }
 
-    pub fn height(&self, config: &Config, resources: &Resources) -> Mm {
+    pub fn height(&self, resources: &Resources) -> Mm {
         match self {
-            Span::Text { style, .. } => font_height(config, resources, &style).into(),
+            Span::Text { style, .. } => font_height(resources, &style).into(),
             Span::Image { height, .. } => height.clone(),
             Span::Rect { height, .. } => height.clone(),
         }

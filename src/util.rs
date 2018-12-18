@@ -1,13 +1,13 @@
-use std::borrow::Cow;
 use printpdf::Pt;
 use resources::Resources;
 use rusttype::{Font, Scale};
+use std::borrow::Cow;
 use style::{Class, Style};
 use Config;
 
-pub fn width_of_text(config: &Config, resources: &Resources, style: &Style, text: &str) -> Pt {
-    let font = font_from_style(config, resources, style);
-    let scale = scale_from_style(config, style);
+pub fn width_of_text(resources: &Resources, style: &Style, text: &str) -> Pt {
+    let font = font_from_style(resources, style);
+    let scale = scale_from_style(resources.get_config(), style);
     let units_per_em = font.units_per_em() as f64;
     let glyph_space_width: f64 = font
         .glyphs_for(text.chars())
@@ -16,23 +16,21 @@ pub fn width_of_text(config: &Config, resources: &Resources, style: &Style, text
                 .get_data()
                 .map(|data| data.unit_h_metrics.advance_width as f64)
                 .unwrap()
-        }).sum();
+        })
+        .sum();
     Pt(glyph_space_width * scale.x as f64 / units_per_em)
 }
 
-pub fn font_height(config: &Config, resources: &Resources, style: &Style) -> Pt {
-    let font = font_from_style(config, resources, style);
-    let scale = scale_from_style(config, style);
+pub fn font_height(resources: &Resources, style: &Style) -> Pt {
+    let font = font_from_style(resources, style);
+    let scale = scale_from_style(resources.get_config(), style);
     let v_metrics = font.v_metrics(scale);
     let height = (v_metrics.ascent - v_metrics.descent + v_metrics.line_gap) as f64;
     Pt(height)
 }
 
-pub fn font_from_style<'res>(
-    config: &Config,
-    resources: &'res Resources,
-    style: &Style,
-) -> &'res Font<'res> {
+pub fn font_from_style<'res>(resources: &'res Resources, style: &Style) -> &'res Font<'res> {
+    let config = resources.get_config();
     let strong = style.contains(&Class::Strong);
     let emphasis = style.contains(&Class::Emphasis);
 
@@ -75,22 +73,14 @@ pub fn scale_from_style(config: &Config, style: &Style) -> Scale {
 
 pub fn slice_cow_from_idx<'c>(text: &Cow<'c, str>, idx: usize) -> Cow<'c, str> {
     match text {
-        Cow::Owned(string) => {
-            Cow::Owned(String::from(&string[idx..]))
-        }
-        Cow::Borrowed(stringref) => {
-            Cow::Borrowed(&stringref[idx..])
-        }
+        Cow::Owned(string) => Cow::Owned(String::from(&string[idx..])),
+        Cow::Borrowed(stringref) => Cow::Borrowed(&stringref[idx..]),
     }
 }
 
 pub fn slice_cow_till_idx<'c>(text: &Cow<'c, str>, idx: usize) -> Cow<'c, str> {
     match text {
-        Cow::Owned(string) => {
-            Cow::Owned(String::from(&string[..idx]))
-        }
-        Cow::Borrowed(stringref) => {
-            Cow::Borrowed(&stringref[..idx])
-        }
+        Cow::Owned(string) => Cow::Owned(String::from(&string[..idx])),
+        Cow::Borrowed(stringref) => Cow::Borrowed(&stringref[..idx]),
     }
 }
