@@ -4,7 +4,6 @@ extern crate image;
 extern crate printpdf;
 extern crate pulldown_cmark as cmark;
 extern crate rusttype;
-extern crate scraper;
 #[macro_use]
 extern crate log;
 
