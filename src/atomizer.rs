@@ -211,16 +211,27 @@ impl<'src> Atomizer<'src> {
             ParseEvent::Text(text) => return (None, AtomizerState::Splitting(text)),
 
             ParseEvent::Html(html) => {
-                use scraper::Html;
-                let fragment = Html::parse_fragment(&html);
+                use quick_xml::{Reader, events::Event as XMLEvent};
+                let mut reader = Reader::from_str(&html);
+                reader.trim_text(true);
+                let mut buf = Vec::new();
 
-                for value in fragment.tree.values() {
-                    let style_option = value.as_element().map(|e| e.attr("style")).unwrap_or(None);
-                    match style_option {
-                        Some("page-break-after:always;") => {
-                            return (Some(Event::Break(Break::Page)), AtomizerState::Parsing);
+                loop {
+                    match reader.read_event(&mut buf) {
+                        Ok(XMLEvent::Start(ref e)) => {
+                            for attr in e.html_attributes() {
+                                let attr = match attr {
+                                    Ok(a) => a,
+                                    Err(_) => continue,
+                                };
+                                if attr.key == b"style" && &attr.value[..] == b"page-break-after:always;" {
+                                    return (Some(Event::Break(Break::Page)), AtomizerState::Parsing);
+                                }
+                            }
                         }
-                        _ => {}
+
+                        Ok(XMLEvent::Eof) => break,
+                        _ => {},
                     }
                 }
             }
