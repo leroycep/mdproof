@@ -14,14 +14,14 @@ pub enum SubsectionType {
 }
 
 pub struct Sectioner<'res> {
-    pub x: Mm,
+    x: Mm,
     lines: Vec<Section>,
     current_line: Vec<Span>,
     current_code_block: Vec<Vec<Span>>,
     min_x: Mm,
     max_x: Mm,
     subsection: Option<Box<Sectioner<'res>>>,
-    pub is_code: bool,
+    is_code: bool,
     is_alt_text: bool,
     resources: &'res Resources,
     cfg: &'res Config,
