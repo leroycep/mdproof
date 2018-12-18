@@ -20,11 +20,11 @@ pub struct Resources {
 pub trait Loader {
     fn queue_font(&mut self, path: &str);
     fn queue_image(&mut self, path: &str);
-    fn load_resources(&self) -> (Resources, Vec<Error>);
+    fn load_resources(&self, res: &mut Resources) -> Vec<Error>;
 }
 
 pub struct SimpleLoader {
-    cfg: Config,
+    root_path: PathBuf,
     queued_images: HashSet<String>,
     queued_fonts: HashSet<String>,
 }
@@ -98,16 +98,16 @@ impl Resources {
 }
 
 impl SimpleLoader {
-    pub fn new(cfg: Config) -> Self {
+    pub fn new(root_path: PathBuf) -> Self {
         Self {
-            cfg: cfg,
+            root_path: root_path,
             queued_images: HashSet::new(),
             queued_fonts: HashSet::new(),
         }
     }
 
     fn load_font(&self, font: &str) -> Result<Font<'static>, Error> {
-        let filename = self.cfg.resources_directory.join(font);
+        let filename = self.root_path.join(font);
 
         let mut buffer = Vec::new();
         let mut font_file = std::fs::File::open(&filename)?;
@@ -118,7 +118,7 @@ impl SimpleLoader {
     }
 
     fn load_image(&self, image_path: &str) -> Result<DynamicImage, Error> {
-        let filename = self.cfg.resources_directory.join(image_path);
+        let filename = self.root_path.join(image_path);
 
         let image = image::open(&filename)?;
         Ok(image)
@@ -134,8 +134,7 @@ impl Loader for SimpleLoader {
         self.queued_images.insert(path.to_string());
     }
 
-    fn load_resources(&self) -> (Resources, Vec<Error>) {
-        let mut res = Resources::new(self.cfg.clone());
+    fn load_resources(&self, res: &mut Resources) -> Vec<Error> {
         let mut errors = Vec::new();
         for font_name in self.queued_fonts.iter() {
             match self.load_font(font_name) {
@@ -149,6 +148,6 @@ impl Loader for SimpleLoader {
                 Err(e) => errors.push(e),
             }
         }
-        (res, errors)
+        errors
     }
 }
