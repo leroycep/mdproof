@@ -1,10 +1,10 @@
 use super::Config;
-use page::Page;
+use crate::page::Page;
 use printpdf::Mm;
-use resources::Resources;
-use section::Section;
-use span::Span;
-use style::Class;
+use crate::resources::Resources;
+use crate::section::Section;
+use crate::span::Span;
+use crate::style::Class;
 
 pub struct Pages<'res> {
     pages: Vec<Page>,

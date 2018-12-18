@@ -19,17 +19,17 @@ mod span;
 mod style;
 mod util;
 
-use cmark::*;
+use crate::cmark::*;
 use failure::Error;
 use printpdf::{Image, Mm, PdfDocument, PdfDocumentReference};
 use rusttype::Scale;
 
-use pages::Pages;
-use resources::Loader;
-use sectioner::Sectioner;
-use span::Span;
+use crate::pages::Pages;
+use crate::resources::Loader;
+use crate::sectioner::Sectioner;
+use crate::span::Span;
 use std::path::PathBuf;
-use style::Class;
+use crate::style::Class;
 
 const DEFAULT_REGULAR_FONT: &str = "mdproof-default-regular";
 const DEFAULT_BOLD_FONT: &str = "mdproof-default-bold";
@@ -124,7 +124,7 @@ pub fn markdown_to_pdf(markdown: &str, cfg: &Config) -> Result<PdfDocumentRefere
             }
         }
 
-        let (resources, load_errors) = loader.load_resources();
+        let (resources, _load_errors) = loader.load_resources();
 
         let sized_atoms: Vec<_> = sizer::Sizer::new(atoms.into_iter(), &resources).collect();
 
@@ -177,7 +177,7 @@ pub fn markdown_to_pdf(markdown: &str, cfg: &Config) -> Result<PdfDocumentRefere
             }
 
             let current_layer = doc.get_page(page_idx).get_layer(layer_idx);
-            let mut page = page.into_vec().into_iter().peekable();
+            let page = page.into_vec().into_iter().peekable();
             for span in page {
                 current_layer.begin_text_section();
                 current_layer.set_text_cursor(span.pos.0, span.pos.1);

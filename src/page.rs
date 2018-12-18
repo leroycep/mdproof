@@ -1,6 +1,6 @@
 use printpdf::Mm;
-use resources::Resources;
-use span::{PositionedSpan, Span};
+use crate::resources::Resources;
+use crate::span::{PositionedSpan, Span};
 
 #[derive(Clone)]
 pub struct Page {

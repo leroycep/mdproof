@@ -1,6 +1,6 @@
 use printpdf::Mm;
-use resources::Resources;
-use span::Span;
+use crate::resources::Resources;
+use crate::span::Span;
 
 #[derive(Clone, Debug)]
 pub enum Section {

@@ -7,7 +7,7 @@ use std::fs::File;
 use std::io::{stdin, BufWriter, Read};
 use std::path::Path;
 
-#[derive(Debug, StructOpt)]
+#[derive(Debug, self::StructOpt)]
 struct Cli {
     /// The markdown file to read and render. If `-` is passed, the markdown will be
     /// read from stdin.

@@ -1,12 +1,12 @@
-use atomizer::{Atom, BlockTag, Break};
+use crate::atomizer::{Atom, BlockTag, Break};
 use printpdf::Mm;
-use resources::Resources;
-use section::Section;
-use sizer::{SizedAtom, SizedEvent};
-use span::Span;
-use style::Style;
-use util::width_of_text;
-use Config;
+use crate::resources::Resources;
+use crate::section::Section;
+use crate::sizer::{SizedAtom, SizedEvent};
+use crate::span::Span;
+use crate::style::Style;
+use crate::util::width_of_text;
+use crate::Config;
 
 pub enum SubsectionType {
     List,

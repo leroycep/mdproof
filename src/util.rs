@@ -1,9 +1,9 @@
 use printpdf::Pt;
-use resources::Resources;
+use crate::resources::Resources;
 use rusttype::{Font, Scale};
 use std::borrow::Cow;
-use style::{Class, Style};
-use Config;
+use crate::style::{Class, Style};
+use crate::Config;
 
 pub fn width_of_text(resources: &Resources, style: &Style, text: &str) -> Pt {
     let font = font_from_style(resources, style);
