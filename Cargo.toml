@@ -10,10 +10,10 @@ doc = false
 
 [dependencies]
 quicli = "0.3"
-pulldown-cmark = "0"
-printpdf = "*"
-rusttype = "*"
-failure = "*"
-quick-xml = "*"
-image = "*"
-log = "*"
+pulldown-cmark = "0.5.3"
+printpdf = "0.2.11"
+image = "0.20"
+rusttype = "0.7"
+failure = "0.1.5"
+quick-xml = "0.15.0"
+log = "0.4.8"

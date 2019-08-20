@@ -1,9 +1,9 @@
-use printpdf::Pt;
 use crate::resources::Resources;
-use rusttype::{Font, Scale};
-use std::borrow::Cow;
 use crate::style::{Class, Style};
 use crate::Config;
+use printpdf::Pt;
+use pulldown_cmark::{CowStr, InlineStr};
+use rusttype::{Font, Scale};
 
 pub fn width_of_text(resources: &Resources, style: &Style, text: &str) -> Pt {
     let font = font_from_style(resources, style);
@@ -71,16 +71,24 @@ pub fn scale_from_style(config: &Config, style: &Style) -> Scale {
     }
 }
 
-pub fn slice_cow_from_idx<'c>(text: &Cow<'c, str>, idx: usize) -> Cow<'c, str> {
+pub fn slice_cow_from_idx<'c>(text: &CowStr<'c>, idx: usize) -> CowStr<'c> {
     match text {
-        Cow::Owned(string) => Cow::Owned(String::from(&string[idx..])),
-        Cow::Borrowed(stringref) => Cow::Borrowed(&stringref[idx..]),
+        CowStr::Boxed(string) => CowStr::from(String::from(&string[idx..])),
+        CowStr::Borrowed(stringref) => CowStr::Borrowed(&stringref[idx..]),
+        CowStr::Inlined(string) => match InlineStr::try_from_str(&string[idx..]) {
+            Ok(inlined) => CowStr::Inlined(inlined),
+            Err(_) => CowStr::from(String::from(&string[idx..])),
+        },
     }
 }
 
-pub fn slice_cow_till_idx<'c>(text: &Cow<'c, str>, idx: usize) -> Cow<'c, str> {
+pub fn slice_cow_till_idx<'c>(text: &CowStr<'c>, idx: usize) -> CowStr<'c> {
     match text {
-        Cow::Owned(string) => Cow::Owned(String::from(&string[..idx])),
-        Cow::Borrowed(stringref) => Cow::Borrowed(&stringref[..idx]),
+        CowStr::Boxed(string) => CowStr::from(String::from(&string[..idx])),
+        CowStr::Borrowed(stringref) => CowStr::Borrowed(&stringref[..idx]),
+        CowStr::Inlined(string) => match InlineStr::try_from_str(&string[..idx]) {
+            Ok(inlined) => CowStr::Inlined(inlined),
+            Err(_) => CowStr::from(String::from(&string[..idx])),
+        },
     }
 }

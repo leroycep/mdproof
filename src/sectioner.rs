@@ -109,7 +109,7 @@ impl<'res> Sectioner<'res> {
                     }
 
                     Atom::Image { uri } => {
-                        let span = Span::image(width, height, uri.into_owned().into());
+                        let span = Span::image(width, height, uri.into_string().into());
                         self.push_span(span);
                         self.is_alt_text = true;
                     }
