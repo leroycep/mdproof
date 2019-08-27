@@ -1,3 +1,9 @@
+/*
+  This Source Code Form is subject to the terms of the Mozilla Public
+  License, v. 2.0. If a copy of the MPL was not distributed with this
+  file, You can obtain one at http://mozilla.org/MPL/2.0/.
+*/
+
 #[macro_use]
 extern crate failure;
 extern crate image;
@@ -27,8 +33,8 @@ use crate::pages::Pages;
 use crate::resources::Loader;
 use crate::sectioner::Sectioner;
 use crate::span::Span;
-use std::path::PathBuf;
 use crate::style::Class;
+use std::path::PathBuf;
 
 const DEFAULT_REGULAR_FONT: &str = "mdproof-default-regular";
 const DEFAULT_BOLD_FONT: &str = "mdproof-default-bold";

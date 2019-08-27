@@ -1,8 +1,14 @@
+/*
+  This Source Code Form is subject to the terms of the Mozilla Public
+  License, v. 2.0. If a copy of the MPL was not distributed with this
+  file, You can obtain one at http://mozilla.org/MPL/2.0/.
+*/
+
 use crate::atomizer::{Atom, BlockTag, Break, Event as AtomizerEvent};
-use image::GenericImageView;
-use printpdf::Mm;
 use crate::resources::Resources;
 use crate::util::{font_height, width_of_text};
+use image::GenericImageView;
+use printpdf::Mm;
 
 const IMAGE_DPI: f64 = 300.0;
 const WIDTH_IMAGE_NOT_FOUND: Mm = Mm(50.0);

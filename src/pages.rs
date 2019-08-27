@@ -1,10 +1,16 @@
+/*
+  This Source Code Form is subject to the terms of the Mozilla Public
+  License, v. 2.0. If a copy of the MPL was not distributed with this
+  file, You can obtain one at http://mozilla.org/MPL/2.0/.
+*/
+
 use super::Config;
 use crate::page::Page;
-use printpdf::Mm;
 use crate::resources::Resources;
 use crate::section::Section;
 use crate::span::Span;
 use crate::style::Class;
+use printpdf::Mm;
 
 pub struct Pages<'res> {
     pages: Vec<Page>,

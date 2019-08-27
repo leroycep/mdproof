@@ -1,8 +1,14 @@
-use printpdf::Mm;
+/*
+  This Source Code Form is subject to the terms of the Mozilla Public
+  License, v. 2.0. If a copy of the MPL was not distributed with this
+  file, You can obtain one at http://mozilla.org/MPL/2.0/.
+*/
+
 use crate::resources::Resources;
-use std::path::PathBuf;
 use crate::style::Style;
 use crate::util::{font_height, width_of_text};
+use printpdf::Mm;
+use std::path::PathBuf;
 
 #[derive(Clone, Debug)]
 pub enum Span {

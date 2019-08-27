@@ -1,5 +1,10 @@
+/*
+  This Source Code Form is subject to the terms of the Mozilla Public
+  License, v. 2.0. If a copy of the MPL was not distributed with this
+  file, You can obtain one at http://mozilla.org/MPL/2.0/.
+*/
+
 use crate::atomizer::{Atom, BlockTag, Break};
-use printpdf::Mm;
 use crate::resources::Resources;
 use crate::section::Section;
 use crate::sizer::{SizedAtom, SizedEvent};
@@ -7,6 +12,7 @@ use crate::span::Span;
 use crate::style::Style;
 use crate::util::width_of_text;
 use crate::Config;
+use printpdf::Mm;
 
 pub enum SubsectionType {
     List,
