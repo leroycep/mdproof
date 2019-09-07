@@ -1,0 +1,22 @@
+[package]
+name = "mdproof-web"
+version = "0.1.0"
+authors = ["LeRoyce Pearson <leroycepearson@geemili.xyz>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+seed = "^0.4.0"
+wasm-bindgen = "^0.2.45"
+web-sys = { version = "^0.3.19", features = ['Blob', 'Url', 'BlobPropertyBag', 'EndingTypes'] }
+js-sys = "^0.3.19"
+
+mdproof = { path = "../" }
+
+# For serialization, eg sending requests to a server. Otherwise, not required.
+serde = { version = "^1.0.85", features = ['derive'] }
+futures = "^0.1.26"
