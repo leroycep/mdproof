@@ -36,8 +36,8 @@ fn update(msg: Msg, model: &mut Model, _orders: &mut impl Orders<Msg>) {
         }
         UpdateMarkdown(text) => {
             model.markdown = text;
-            let config = mdproof::Config::default();
-            if let Ok(pdf_ref) = mdproof::markdown_to_pdf(&model.markdown, &config) {
+            let config = mdproof_core::Config::default();
+            if let Ok(pdf_ref) = mdproof_core::markdown_to_pdf(&model.markdown, &config) {
                 let mut output = std::io::BufWriter::new(Vec::new());
                 match pdf_ref.save(&mut output) {
                     Err(e) => {

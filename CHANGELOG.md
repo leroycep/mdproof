@@ -6,6 +6,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+- WASM based web frontend
+- CLI application frontend
 - Automatic layouting of text
 - Rendering of thematic breaks
 - Rendering of unordered lists

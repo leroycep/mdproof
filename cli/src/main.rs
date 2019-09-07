@@ -6,7 +6,7 @@
 
 #[macro_use]
 extern crate quicli;
-extern crate mdproof;
+extern crate mdproof_core as mdproof;
 
 use quicli::prelude::*;
 use std::fs::File;

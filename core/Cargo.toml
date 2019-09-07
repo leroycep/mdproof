@@ -1,0 +1,18 @@
+[package]
+name = "mdproof-core"
+version = "0.1.0"
+authors = ["LeRoyce Pearson <leroycepearson@geemili.xyz>"]
+edition = "2018"
+license = "MPL-2.0"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+pulldown-cmark = "0.5.3"
+printpdf = "0.2.11"
+image = "0.20"
+rusttype = "0.7"
+failure = "0.1.5"
+quick-xml = "0.15.0"
+log = "0.4.8"
+

@@ -1,10 +1,19 @@
 { pkgs ? import <nixpkgs> {} }:
 with pkgs;
 
-stdenv.mkDerivation {
-name = "mdproof-env";
-buildInputs = [
-  rustChannels.stable.rust
-  gcc
-];
-}
+let
+  myrust = (rustChannels.stable.rust.override {
+    extensions = [ "rust-std" ];
+    targets = [
+        "wasm32-unknown-unknown"
+    ];
+  });
+in
+  stdenv.mkDerivation {
+    name = "mdproof-env";
+    buildInputs = [
+      git
+      myrust
+    ];
+  }
+
