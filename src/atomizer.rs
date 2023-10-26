@@ -76,7 +76,7 @@ impl<'src> Atomizer<'src> {
     pub fn new(parser: Parser<'src>) -> Self {
         Atomizer {
             state: AtomizerState::Parsing,
-            parser: parser,
+            parser,
             current_style: Style::default(),
             is_code: false,
             is_alt_text: false,

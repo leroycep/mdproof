@@ -17,8 +17,8 @@ pub struct Pages<'res> {
 impl<'res> Pages<'res> {
     pub fn new(cfg: &'res Config, resources: &'res Resources) -> Self {
         Self {
-            cfg: cfg,
-            resources: resources,
+            cfg,
+            resources,
             pages: vec![],
             current_page: Page::new(),
             current_y: cfg.page_size.1 - cfg.margin.1,
@@ -44,7 +44,7 @@ impl<'res> Pages<'res> {
             match section {
                 Section::Plain(spans) => {
                     self.current_page
-                        .render_spans(self.resources, &spans, start_x, self.current_y)
+                        .render_spans(self.resources, spans, start_x, self.current_y)
                 }
                 Section::VerticalSpace(_) => {}
                 Section::ThematicBreak => {
