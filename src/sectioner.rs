@@ -34,12 +34,12 @@ impl<'res> Sectioner<'res> {
             lines: Vec::new(),
             current_line: Vec::new(),
             current_code_block: Vec::new(),
-            min_x: min_x,
-            max_x: max_x,
+            min_x,
+            max_x,
             subsection: None,
             is_code: false,
             is_alt_text: false,
-            resources: resources,
+            resources,
             cfg: resources.get_config(),
         }
     }
@@ -75,7 +75,7 @@ impl<'res> Sectioner<'res> {
                 self.subsection = Some(Box::new(Sectioner::new(
                     self.min_x + self.cfg.list_indentation,
                     self.max_x,
-                    &self.resources,
+                    self.resources,
                 )))
             }
             SizedEvent::EndBlock(BlockTag::ListItem) => return Some(SubsectionType::List),
@@ -85,7 +85,7 @@ impl<'res> Sectioner<'res> {
                 self.subsection = Some(Box::new(Sectioner::new(
                     self.min_x + self.cfg.quote_indentation,
                     self.max_x,
-                    &self.resources,
+                    self.resources,
                 )))
             }
             SizedEvent::EndBlock(BlockTag::BlockQuote) => return Some(SubsectionType::Quote),
@@ -168,7 +168,7 @@ impl<'res> Sectioner<'res> {
     }
 
     pub fn new_line(&mut self) {
-        if self.current_line.len() == 0 {
+        if self.current_line.is_empty() {
             return;
         }
         if self.is_code {
@@ -182,7 +182,7 @@ impl<'res> Sectioner<'res> {
 
     pub fn get_vec(mut self) -> Vec<Section> {
         // Make sure that current_line is put into the output
-        if self.current_line.len() != 0 {
+        if !self.current_line.is_empty() {
             self.lines.push(Section::plain(self.current_line));
         }
         // Check if the last section is a blank-type of section, so that we

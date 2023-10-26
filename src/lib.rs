@@ -110,17 +110,13 @@ pub fn markdown_to_pdf(markdown: &str, cfg: &Config) -> Result<PdfDocumentRefere
 
     {
         let mut resources = resources::Resources::new(cfg.clone());
-        let atomizer = atomizer::Atomizer::new(Parser::new(&markdown));
+        let atomizer = atomizer::Atomizer::new(Parser::new(markdown));
 
         let atoms: Vec<atomizer::Event> = atomizer.collect();
         let mut loader = resources::SimpleLoader::new(PathBuf::from(&cfg.resources_directory));
         for event in atoms.iter() {
-            match event {
-                atomizer::Event::Atom(atomizer::Atom::Image { uri }) => {
-                    loader.queue_image(uri);
-                }
-
-                _ => {}
+            if let atomizer::Event::Atom(atomizer::Atom::Image { uri }) = event {
+                loader.queue_image(uri);
             }
         }
 
@@ -200,7 +196,7 @@ pub fn markdown_to_pdf(markdown: &str, cfg: &Config) -> Result<PdfDocumentRefere
                             &regular
                         };
 
-                        let font_scale = util::scale_from_style(&cfg, &style);
+                        let font_scale = util::scale_from_style(cfg, &style);
 
                         current_layer.set_font(font, font_scale.y as i64);
                         current_layer.write_text(text, font);

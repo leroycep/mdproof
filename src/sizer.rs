@@ -53,8 +53,8 @@ where
 
                 let sized_atom = SizedAtom {
                     atom: Atom::Text { text, style },
-                    width: width,
-                    height: height,
+                    width,
+                    height,
                 };
                 Some(SizedEvent::SizedAtom(sized_atom))
             }

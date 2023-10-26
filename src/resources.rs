@@ -42,7 +42,7 @@ impl Resources {
             root_path: config.resources_directory.clone(),
             images: BTreeMap::new(),
             fonts: BTreeMap::new(),
-            config: config,
+            config,
         };
         res.fonts.insert(
             DEFAULT_REGULAR_FONT.into(),
@@ -100,7 +100,7 @@ impl Resources {
 impl SimpleLoader {
     pub fn new(root_path: PathBuf) -> Self {
         Self {
-            root_path: root_path,
+            root_path,
             queued_images: HashSet::new(),
             queued_fonts: HashSet::new(),
         }
@@ -110,7 +110,7 @@ impl SimpleLoader {
         let filename = self.root_path.join(font);
 
         let mut buffer = Vec::new();
-        let mut font_file = std::fs::File::open(&filename)?;
+        let mut font_file = std::fs::File::open(filename)?;
         font_file.read_to_end(&mut buffer)?;
 
         let font = Font::from_bytes(buffer)?;
@@ -120,7 +120,7 @@ impl SimpleLoader {
     fn load_image(&self, image_path: &str) -> Result<DynamicImage, Error> {
         let filename = self.root_path.join(image_path);
 
-        let image = image::open(&filename)?;
+        let image = image::open(filename)?;
         Ok(image)
     }
 }

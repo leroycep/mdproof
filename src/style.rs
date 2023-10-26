@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Default)]
 pub struct Style(HashSet<Class>);
 
 #[derive(Debug, Hash, Clone, Eq, PartialEq)]
@@ -30,11 +31,7 @@ impl Style {
     }
 }
 
-impl Default for Style {
-    fn default() -> Self {
-        Style(HashSet::new())
-    }
-}
+
 
 impl<'a, I: Iterator<Item = &'a Class>> From<I> for Style {
     fn from(classes: I) -> Self {
